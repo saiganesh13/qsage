@@ -12,13 +12,16 @@
 }
 :root[data-theme="dark"]{
   color-scheme:dark; --is-dark:1;
-  --bg:#06080D; --surface:#0E131C; --surface-2:#161D2A; --ink:#E4E9F1; --head:#FFFFFF; --muted:#9AA6B8; --line:#232D3E;
-  --copper:#EFA064; --copper-hi:#F7C99A; --copper-lo:#B8692F; --on-copper:#1B1007; --copper-wash:#2A1D12;
-  --cyan:#5CD6EE; --good:#4ADE80; --bad:#F87171; --scrim:rgba(0,0,0,.62);
-  --brand:#3B82F6; --brand-hi:#60A5FA; --brand-strong:#2563EB; --brand-soft:rgba(59,130,246,.14); --brand-ink:#BFD7FF;
-  --tab-active:rgba(255,255,255,.09); --tab-active-fg:#FFFFFF;
-  --track:rgba(255,255,255,.1); --glow:rgba(37,99,235,.32); --glow-2:rgba(92,242,246,.14);
-  --good-soft:rgba(74,222,128,.1); --bad-soft:rgba(248,113,113,.1); --top-bg:rgba(6,8,13,.8);
+  /* Calm graphite: a lifted, low-glare dark built for long reading. Surfaces step up in
+     clear layers (page → card → inset) so lessons, labs and notes read as distinct blocks,
+     and text is off-white rather than pure white to avoid halation on dark screens. */
+  --bg:#13171E; --surface:#1B2029; --surface-2:#242B36; --ink:#D3DAE4; --head:#F1F4F8; --muted:#A0AABA; --line:#2E3645;
+  --copper:#EFA064; --copper-hi:#F7C99A; --copper-lo:#B8692F; --on-copper:#1B1007; --copper-wash:#30241A;
+  --cyan:#6CCFE3; --good:#5BD98A; --bad:#F38B8B; --scrim:rgba(5,7,10,.6);
+  --brand:#5B86E8; --brand-hi:#86A6F2; --brand-strong:#3F6AD6; --brand-soft:rgba(110,150,240,.13); --brand-ink:#BED0F7;
+  --tab-active:rgba(255,255,255,.08); --tab-active-fg:#F1F4F8;
+  --track:rgba(255,255,255,.09); --glow:rgba(91,134,232,.13); --glow-2:rgba(108,207,227,.07);
+  --good-soft:rgba(91,217,138,.1); --bad-soft:rgba(243,139,139,.1); --top-bg:rgba(19,23,30,.9);
 }
 :root[data-theme="light"]{
   color-scheme:light; --is-dark:0;

@@ -24,7 +24,10 @@ const TOOLKIT = [
 const GROUPS = STAGES.map(s => Object.assign({ part: 1, code: s.temp }, s)).concat(TRACKS.map(t => Object.assign({ part: 2, temp: t.code }, t))).concat(TOOLKIT.map(t => Object.assign({ part: 0, temp: t.code }, t)));
 const GRANK = i => GROUPS[i].part === 0 ? i - 100 : i;
 const GORDER = GROUPS.map((g, i) => i).sort((a, b) => GRANK(a) - GRANK(b));
-const PART_LABEL = { 0: 'Part 0 · Math toolkit', 1: 'Part I · Core path', 2: 'Part II · Research tracks' };
+const PART_LABEL = { 0: 'Part 1 · Math toolkit', 1: 'Part 2 · Core path', 2: 'Part 3 · Research tracks' };
+const PART_NO = { 0: 1, 1: 2, 2: 3 }, PART_OF_NO = { 1: 0, 2: 1, 3: 2 };
+const PART_NAME = { 0: 'Math toolkit', 1: 'Core path', 2: 'Research tracks' };
+const PART_SUB = { 0: 'Start with the math', 1: 'From 300 K to 10 mK', 2: 'Into current research' };
 window.GLOSSARY = window.GLOSSARY.concat(window.GLOSSARY_EXTRA || []).sort((a, b) => a[0].localeCompare(b[0]));
 
 /* n is only a sort key inside a group; lessons are renumbered 1…N, and cross-references
@@ -152,10 +155,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !drawer.hi
 function buildSide(m, cur) {
   const d = Prog.count(m.ls);
   const sel = h('select', { class: 'side-sel', 'aria-label': 'Switch module' },
-    ...MODULES.map(x => h('option', { value: String(x.no), selected: x === m }, `Module ${pad2(x.no)} · ${x.g.title}`)));
+    ...[0, 1, 2].map(p => h('optgroup', { label: PART_LABEL[p] },
+      ...MODULES.filter(x => x.g.part === p).map(x => h('option', { value: String(x.no), selected: x === m }, `Module ${pad2(x.no)} · ${x.g.title}`)))));
   sel.addEventListener('change', () => { location.hash = 'module/' + sel.value; });
   return h('div', null,
     h('a', { class: 'side-back', href: '#' }, ico('grid', 16), 'All modules'),
+    partNav(m.g.part, true),
     sel,
     h('div', { class: 'side-mod' },
       h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', { class: 'mcard-no' }, `Module ${pad2(m.no)}`), h('span', { class: 'tag' }, modTag(m))),
@@ -173,6 +178,20 @@ function setSide(m, cur) {
   sideEl.innerHTML = ''; drawerNav.innerHTML = '';
   if (!m) return;
   sideEl.append(buildSide(m, cur)); drawerNav.append(buildSide(m, cur));
+}
+
+/* ---------- part navigation (Part 1 · 2 · 3) ---------- */
+function partLink(p) { return '#part/' + PART_NO[p]; }
+function partNav(cur, compact) {
+  return h('nav', { class: 'partnav' + (compact ? ' compact' : ''), 'aria-label': 'Course parts' }, ...[0, 1, 2].map(p => {
+    const ms = MODULES.filter(m => m.g.part === p), nls = ms.reduce((s, m) => s + m.ls.length, 0);
+    const done = ms.reduce((s, m) => s + Prog.count(m.ls), 0);
+    return h('a', { href: partLink(p), 'data-part': String(p), 'aria-current': cur === p ? 'true' : 'false' },
+      h('small', null, `Part ${PART_NO[p]}`),
+      h('b', null, PART_NAME[p]),
+      compact ? null : h('span', { class: 'pn-meta' }, `${ms.length} module${ms.length > 1 ? 's' : ''} · ${nls} lessons`),
+      compact ? null : h('span', { class: 'pbar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.round(done / nls * 100)}%` })));
+  }));
 }
 
 /* ---------- overview ---------- */
@@ -226,8 +245,10 @@ function renderOverview(main) {
   const partHead = (eyebrow, title, text) => h('div', { class: 'part-head' }, h('div', null, h('span', { class: 'eyebrow' }, eyebrow), h('h2', null, title)), h('p', null, text));
   const byPart = p => MODULES.filter(m => m.g.part === p);
 
-  main.append(h('section', { class: 'part', 'aria-label': PART_LABEL[0] },
-    partHead(PART_LABEL[0], 'Start with the math', 'Linear algebra is the language of quantum computing. If vectors, matrices or tensor products feel rusty, begin here. If not, skip ahead and come back when you need a refresher.'),
+  const pnav = partNav(-1);
+  main.append(h('div', { class: 'partnav-wrap' }, pnav));
+  main.append(h('section', { class: 'part', id: 'part-1', 'aria-label': PART_LABEL[0] },
+    partHead(PART_LABEL[0], PART_SUB[0], 'Linear algebra is the language of quantum computing. If vectors, matrices or tensor products feel rusty, begin here. If not, skip ahead and come back when you need a refresher.'),
     h('div', { class: 'mgrid' }, ...byPart(0).map(m => { const c = modCard(m); c.classList.add('feat'); return c; }))));
 
   const descent = h('div', { class: 'descent' });
@@ -235,12 +256,12 @@ function renderOverview(main) {
     h('div', { class: 'dsc-temp' }, h('b', null, m.g.temp), h('small', null, m.g.name)),
     h('div', { class: 'dsc-rail', 'aria-hidden': 'true' }, h('span', { class: 'dsc-plate', style: `--w:${m.g.w}` }), h('i')),
     modCard(m))));
-  main.append(h('section', { class: 'part', 'aria-label': PART_LABEL[1] },
-    partHead(PART_LABEL[1], 'From 300 K to 10 mK', 'Five modules follow the same route as the qubits in a real machine. Each stage is colder than the last and each module goes a little deeper, from a single qubit to error-corrected hardware.'),
+  main.append(h('section', { class: 'part', id: 'part-2', 'aria-label': PART_LABEL[1] },
+    partHead(PART_LABEL[1], PART_SUB[1], 'Five modules follow the same route as the qubits in a real machine. Each stage is colder than the last and each module goes a little deeper, from a single qubit to error-corrected hardware.'),
     descent));
 
-  main.append(h('section', { class: 'part', 'aria-label': PART_LABEL[2] },
-    partHead(PART_LABEL[2], 'Into current research', 'Six tracks into where the field is working now. They assume the core path and use the same live labs, with the most room given to error correction and fault tolerance.'),
+  main.append(h('section', { class: 'part', id: 'part-3', 'aria-label': PART_LABEL[2] },
+    partHead(PART_LABEL[2], PART_SUB[2], 'Six tracks into where the field is working now. They assume the core path and use the same live labs, with the most room given to error correction and fault tolerance.'),
     h('div', { class: 'mgrid tracks' }, ...byPart(2).map(modCard))));
 
   const legBloch = canvas('sq', 'max-width:150px'), lb = new BlochView(legBloch, { labels: 'min', drag: false, trail: false }); lb.set([S2 * .9, S2 * .9 * .3, .55]);
@@ -258,6 +279,20 @@ function renderOverview(main) {
     h('div', { class: 'cta-card' },
       h('div', null, h('h3', null, 'Glossary'), h('p', null, `${window.GLOSSARY.length} short definitions, each linked to the lesson that explains it.`)),
       h('a', { class: 'btn', href: '#glossary' }, 'Open the glossary', ico('arrowR', 16)))));
+
+  const secs = [0, 1, 2].map(p => document.getElementById('part-' + PART_NO[p]));
+  const onScroll = () => {
+    const y = ((document.querySelector('.qs-top') || {}).offsetHeight || 68) + 140;
+    let cur = -1; secs.forEach((s, p) => { if (s && s.getBoundingClientRect().top <= y) cur = p; });
+    pnav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', String(+a.dataset.part === cur)));
+  };
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  spyOff = () => window.removeEventListener('scroll', onScroll);
+}
+function scrollToPart(n) {
+  const el = document.getElementById('part-' + n); if (!el) return;
+  const off = ((document.querySelector('.qs-top') || {}).offsetHeight || 68) + 96;
+  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 /* ---------- module page ---------- */
@@ -265,7 +300,7 @@ function renderModule(m, main) {
   setSide(null);
   const d = Prog.count(m.ls), n = m.ls.length, next = m.ls.find(l => !Prog.d.done[l.id]) || m.ls[0];
   const prev = MODULES[m.no - 2], after = MODULES[m.no];
-  main.append(h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#' }, 'Learn'), ico('chevR', 14), h('span', { 'aria-current': 'page' }, `Module ${pad2(m.no)}`)));
+  main.append(h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#' }, 'Learn'), ico('chevR', 14), h('a', { href: partLink(m.g.part) }, PART_LABEL[m.g.part]), ico('chevR', 14), h('span', { 'aria-current': 'page' }, `Module ${pad2(m.no)}`)));
   main.append(h('header', { class: 'mhero' },
     h('div', { class: 'mhero-copy' },
       h('div', { class: 'lh-eyebrow' }, h('span', { class: 'eyebrow' }, `Module ${pad2(m.no)} · ${PART_LABEL[m.g.part]}`), h('span', { class: 'tag' }, modKind(m))),
@@ -299,6 +334,7 @@ function renderLesson(L, main) {
   barBtn.addEventListener('click', () => openDrawer(barBtn));
   main.append(barBtn);
   main.append(h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#' }, 'Learn'), ico('chevR', 14),
+    h('a', { href: partLink(m.g.part) }, `Part ${PART_NO[m.g.part]}`), ico('chevR', 14),
     h('a', { href: '#module/' + m.no }, `Module ${pad2(m.no)} · ${m.g.title}`), ico('chevR', 14), h('span', { 'aria-current': 'page' }, `Lesson ${idx + 1}`)));
   main.append(h('header', { class: 'lh' },
     h('div', { class: 'lh-eyebrow' }, h('span', { class: 'eyebrow' }, `Lesson ${idx + 1} of ${m.ls.length}`), h('span', { class: 'tag' }, modTag(m)),
@@ -510,9 +546,11 @@ function renderGlossary(main) {
 }
 
 /* ---------- router ---------- */
-let firstRoute = true;
+let firstRoute = true, lastView = '';
 function route() {
   const id = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+  const partNo = /^part\/[123]$/.test(id) ? +id.slice(5) : 0;
+  if (partNo && lastView === 'overview') { scrollToPart(partNo); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
   const main = document.getElementById('main');
   if (spyOff) { spyOff(); spyOff = null; }
   Scope.reset(); main.innerHTML = '';
@@ -521,10 +559,12 @@ function route() {
   if (L) { Prog.seen(L.id); renderLesson(L, main); title = L.title; }
   else if (id.startsWith('module/') && MODULES[+id.slice(7) - 1]) { const m = MODULES[+id.slice(7) - 1]; renderModule(m, main); title = `Module ${pad2(m.no)} · ${m.g.title}`; }
   else if (id === 'glossary') { renderGlossary(main); title = 'Glossary'; }
-  else renderOverview(main);
+  else { renderOverview(main); if (partNo) title = PART_LABEL[PART_OF_NO[partNo]]; }
+  lastView = L ? 'lesson' : id.startsWith('module/') ? 'module' : id === 'glossary' ? 'glossary' : 'overview';
   document.title = `${title} · QSage`;
   closeDrawer();
-  if (!firstRoute) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }
+  if (partNo) requestAnimationFrame(() => { window.scrollTo(0, 0); scrollToPart(partNo); });
+  else if (!firstRoute) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }
   firstRoute = false;
 }
 Prog.load();

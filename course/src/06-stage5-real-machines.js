@@ -122,7 +122,7 @@ ${LAB('surface')}
 <p>If physical errors are rare enough, below the code’s <strong>threshold</strong>, making the code bigger suppresses logical errors exponentially, roughly as ${m('(p/p<sub>th</sub>)<sup>(d+1)/2</sup>')}. Above the threshold, bigger codes make things worse, because there are more places for errors to occur. In 2024 Google reported a surface-code memory running below threshold, with the logical error rate falling by roughly half each time the code distance grew from 3 to 5 to 7.</p>
 ${LAB('threshold')}
 ${NOTE('The overhead', `<p>A useful logical qubit may need hundreds to a thousand physical qubits, plus fast classical decoding of the syndromes in real time. Some gates, such as T, cannot be done directly on surface-code qubits and need extra machinery called magic-state distillation. Much current research aims to cut this overhead with better codes and decoders.</p>`)}
-${NOTE('Go deeper', `<p>The Error correction and fault tolerance track in Part II ([[TR:5]]) picks up from here: the stabilizer formalism, simulating thousand-qubit codes, real decoders, measuring thresholds yourself, fault-tolerant gadgets, magic states, qLDPC codes and resource estimation.</p>`)}
+${NOTE('Go deeper', `<p>The Error correction and fault tolerance track in Part 3 ([[TR:5]]) picks up from here: the stabilizer formalism, simulating thousand-qubit codes, real decoders, measuring thresholds yourself, fault-tolerant gadgets, magic states, qLDPC codes and resource estimation.</p>`)}
 `,
   mount(root) {
     const el = root.querySelector('[data-qec-circuit]'); if (!el) return;

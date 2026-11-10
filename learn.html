@@ -36,13 +36,16 @@
 }
 :root[data-theme="dark"]{
   color-scheme:dark; --is-dark:1;
-  --bg:#06080D; --surface:#0E131C; --surface-2:#161D2A; --ink:#E4E9F1; --head:#FFFFFF; --muted:#9AA6B8; --line:#232D3E;
-  --copper:#EFA064; --copper-hi:#F7C99A; --copper-lo:#B8692F; --on-copper:#1B1007; --copper-wash:#2A1D12;
-  --cyan:#5CD6EE; --good:#4ADE80; --bad:#F87171; --scrim:rgba(0,0,0,.62);
-  --brand:#3B82F6; --brand-hi:#60A5FA; --brand-strong:#2563EB; --brand-soft:rgba(59,130,246,.14); --brand-ink:#BFD7FF;
-  --tab-active:rgba(255,255,255,.09); --tab-active-fg:#FFFFFF;
-  --track:rgba(255,255,255,.1); --glow:rgba(37,99,235,.32); --glow-2:rgba(92,242,246,.14);
-  --good-soft:rgba(74,222,128,.1); --bad-soft:rgba(248,113,113,.1); --top-bg:rgba(6,8,13,.8);
+  /* Calm graphite: a lifted, low-glare dark built for long reading. Surfaces step up in
+     clear layers (page → card → inset) so lessons, labs and notes read as distinct blocks,
+     and text is off-white rather than pure white to avoid halation on dark screens. */
+  --bg:#13171E; --surface:#1B2029; --surface-2:#242B36; --ink:#D3DAE4; --head:#F1F4F8; --muted:#A0AABA; --line:#2E3645;
+  --copper:#EFA064; --copper-hi:#F7C99A; --copper-lo:#B8692F; --on-copper:#1B1007; --copper-wash:#30241A;
+  --cyan:#6CCFE3; --good:#5BD98A; --bad:#F38B8B; --scrim:rgba(5,7,10,.6);
+  --brand:#5B86E8; --brand-hi:#86A6F2; --brand-strong:#3F6AD6; --brand-soft:rgba(110,150,240,.13); --brand-ink:#BED0F7;
+  --tab-active:rgba(255,255,255,.08); --tab-active-fg:#F1F4F8;
+  --track:rgba(255,255,255,.09); --glow:rgba(91,134,232,.13); --glow-2:rgba(108,207,227,.07);
+  --good-soft:rgba(91,217,138,.1); --bad-soft:rgba(243,139,139,.1); --top-bg:rgba(19,23,30,.9);
 }
 :root[data-theme="light"]{
   color-scheme:light; --is-dark:0;
@@ -468,6 +471,29 @@ select.sel{border-radius:12px;font-family:var(--f-body)}
 @media (max-width:900px){.ov-hero{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+/* Part 1 · 2 · 3 navigator (sticky on the overview, compact tabs in the lesson side panel) */
+.partnav-wrap{position:sticky;top:calc(var(--top) + 10px);z-index:8;margin-top:clamp(28px,4vw,44px)}
+.partnav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px;border-radius:22px;background:var(--top-bg);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:0 14px 34px -24px rgba(0,0,0,.55)}
+.partnav a{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;column-gap:10px;row-gap:4px;padding:12px 16px;border-radius:16px;text-decoration:none;color:var(--ink);transition:background-color .2s,color .2s}
+.partnav a:hover{background:var(--surface-2)}
+.partnav a[aria-current="true"]{background:var(--brand-soft)}
+.partnav small{font:600 11.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--brand-ink);white-space:nowrap}
+.partnav b{font:600 16px/1.2 var(--f-display);color:var(--head);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.partnav .pn-meta{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.partnav .pbar{grid-column:1/-1;flex:none;height:4px;min-width:0}
+.partnav.compact{margin-top:12px;padding:4px;gap:3px;border-radius:14px;background:var(--surface);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.partnav.compact a{grid-template-columns:minmax(0,1fr);text-align:center;padding:7px 4px;border-radius:10px;row-gap:3px}
+.partnav.compact small{font-size:10px}
+.partnav.compact b{font-size:12px;font-family:var(--f-body);font-weight:600;white-space:normal;line-height:1.2}
+.partnav.compact a[aria-current="true"]{background:var(--brand-soft);box-shadow:inset 0 0 0 1px var(--brand)}
+.part{scroll-margin-top:calc(var(--top) + 110px)}
+@media (max-width:720px){
+  .partnav{gap:3px;padding:4px;border-radius:18px}
+  .partnav a{grid-template-columns:minmax(0,1fr);padding:9px 8px;text-align:center;border-radius:14px}
+  .partnav b{font-size:13px;white-space:normal}
+  .partnav .pn-meta{display:none}
+}
 .part{padding-top:clamp(56px,7vw,92px)}
 .part-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px 48px;margin-bottom:28px}
 .part-head h2{font:600 clamp(30px,3.6vw,46px)/1.05 var(--f-display);letter-spacing:-.03em;color:var(--head);margin:10px 0 0;max-width:16em;text-wrap:balance}
@@ -539,7 +565,7 @@ select.sel{border-radius:12px;font-family:var(--f-body)}
 .lh h1{font:600 clamp(34px,4.6vw,58px)/1.04 var(--f-display);letter-spacing:-.032em;color:var(--head);margin:0;text-wrap:balance}
 .lh .lede{font-size:clamp(17.5px,1.8vw,21px);line-height:1.55;color:var(--muted);margin:0;max-width:60ch}
 .jump{position:sticky;top:calc(var(--top) + 10px);z-index:6;display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 10px;padding:5px;border-radius:999px;background:var(--top-bg);
-  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);width:max-content;max-width:100%}
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);width:100%;max-width:100%;border-radius:18px}
 .jump button{border:0;background:transparent;font:500 13px var(--f-body);color:var(--muted);padding:9px 14px;border-radius:999px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;min-height:38px}
 .jump button:hover{color:var(--head);background:var(--surface-2)}
 .jump button[aria-current="true"]{background:var(--brand-soft);color:var(--brand-ink)}
@@ -562,6 +588,16 @@ select.sel{border-radius:12px;font-family:var(--f-body)}
 .lab-title{font:600 17px/1.3 var(--f-display);color:var(--head)}
 .lab-body{padding:20px}
 .lab-cap{padding:14px 20px 16px;font-size:15px}
+/* dark theme: reading comfort and clear section boundaries */
+[data-theme="dark"] .prose{color:var(--ink);font-weight:400;letter-spacing:.003em}
+[data-theme="dark"] .prose h2{padding-top:28px;border-top:1px solid var(--line)}
+[data-theme="dark"] .prose > h2:first-child{padding-top:0;border-top:0}
+[data-theme="dark"] .lab{border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 18px 40px -28px rgba(0,0,0,.6)}
+[data-theme="dark"] .lab-head{border-bottom:1px solid var(--line)}
+[data-theme="dark"] .lab-cap{border-top:1px solid var(--line);color:var(--muted)}
+[data-theme="dark"] .note{border:1px solid var(--line);border-left:3px solid var(--brand)}
+[data-theme="dark"] .jump{box-shadow:0 10px 30px -18px rgba(0,0,0,.7)}
+[data-theme="dark"] body{background:radial-gradient(70% 420px at 50% -180px,var(--glow),transparent 70%) no-repeat,var(--bg)}
 .readout,.status{border-radius:12px}
 .status{font-family:var(--f-body)}
 .hint{font-family:var(--f-body)}
@@ -3130,7 +3166,7 @@ ${LAB('surface')}
 <p>If physical errors are rare enough, below the code’s <strong>threshold</strong>, making the code bigger suppresses logical errors exponentially, roughly as ${m('(p/p<sub>th</sub>)<sup>(d+1)/2</sup>')}. Above the threshold, bigger codes make things worse, because there are more places for errors to occur. In 2024 Google reported a surface-code memory running below threshold, with the logical error rate falling by roughly half each time the code distance grew from 3 to 5 to 7.</p>
 ${LAB('threshold')}
 ${NOTE('The overhead', `<p>A useful logical qubit may need hundreds to a thousand physical qubits, plus fast classical decoding of the syndromes in real time. Some gates, such as T, cannot be done directly on surface-code qubits and need extra machinery called magic-state distillation. Much current research aims to cut this overhead with better codes and decoders.</p>`)}
-${NOTE('Go deeper', `<p>The Error correction and fault tolerance track in Part II ([[TR:5]]) picks up from here: the stabilizer formalism, simulating thousand-qubit codes, real decoders, measuring thresholds yourself, fault-tolerant gadgets, magic states, qLDPC codes and resource estimation.</p>`)}
+${NOTE('Go deeper', `<p>The Error correction and fault tolerance track in Part 3 ([[TR:5]]) picks up from here: the stabilizer formalism, simulating thousand-qubit codes, real decoders, measuring thresholds yourself, fault-tolerant gadgets, magic states, qLDPC codes and resource estimation.</p>`)}
 `,
   mount(root) {
     const el = root.querySelector('[data-qec-circuit]'); if (!el) return;
@@ -16344,7 +16380,10 @@ const TOOLKIT = [
 const GROUPS = STAGES.map(s => Object.assign({ part: 1, code: s.temp }, s)).concat(TRACKS.map(t => Object.assign({ part: 2, temp: t.code }, t))).concat(TOOLKIT.map(t => Object.assign({ part: 0, temp: t.code }, t)));
 const GRANK = i => GROUPS[i].part === 0 ? i - 100 : i;
 const GORDER = GROUPS.map((g, i) => i).sort((a, b) => GRANK(a) - GRANK(b));
-const PART_LABEL = { 0: 'Part 0 · Math toolkit', 1: 'Part I · Core path', 2: 'Part II · Research tracks' };
+const PART_LABEL = { 0: 'Part 1 · Math toolkit', 1: 'Part 2 · Core path', 2: 'Part 3 · Research tracks' };
+const PART_NO = { 0: 1, 1: 2, 2: 3 }, PART_OF_NO = { 1: 0, 2: 1, 3: 2 };
+const PART_NAME = { 0: 'Math toolkit', 1: 'Core path', 2: 'Research tracks' };
+const PART_SUB = { 0: 'Start with the math', 1: 'From 300 K to 10 mK', 2: 'Into current research' };
 window.GLOSSARY = window.GLOSSARY.concat(window.GLOSSARY_EXTRA || []).sort((a, b) => a[0].localeCompare(b[0]));
 
 /* n is only a sort key inside a group; lessons are renumbered 1…N, and cross-references
@@ -16472,10 +16511,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !drawer.hi
 function buildSide(m, cur) {
   const d = Prog.count(m.ls);
   const sel = h('select', { class: 'side-sel', 'aria-label': 'Switch module' },
-    ...MODULES.map(x => h('option', { value: String(x.no), selected: x === m }, `Module ${pad2(x.no)} · ${x.g.title}`)));
+    ...[0, 1, 2].map(p => h('optgroup', { label: PART_LABEL[p] },
+      ...MODULES.filter(x => x.g.part === p).map(x => h('option', { value: String(x.no), selected: x === m }, `Module ${pad2(x.no)} · ${x.g.title}`)))));
   sel.addEventListener('change', () => { location.hash = 'module/' + sel.value; });
   return h('div', null,
     h('a', { class: 'side-back', href: '#' }, ico('grid', 16), 'All modules'),
+    partNav(m.g.part, true),
     sel,
     h('div', { class: 'side-mod' },
       h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', { class: 'mcard-no' }, `Module ${pad2(m.no)}`), h('span', { class: 'tag' }, modTag(m))),
@@ -16493,6 +16534,20 @@ function setSide(m, cur) {
   sideEl.innerHTML = ''; drawerNav.innerHTML = '';
   if (!m) return;
   sideEl.append(buildSide(m, cur)); drawerNav.append(buildSide(m, cur));
+}
+
+/* ---------- part navigation (Part 1 · 2 · 3) ---------- */
+function partLink(p) { return '#part/' + PART_NO[p]; }
+function partNav(cur, compact) {
+  return h('nav', { class: 'partnav' + (compact ? ' compact' : ''), 'aria-label': 'Course parts' }, ...[0, 1, 2].map(p => {
+    const ms = MODULES.filter(m => m.g.part === p), nls = ms.reduce((s, m) => s + m.ls.length, 0);
+    const done = ms.reduce((s, m) => s + Prog.count(m.ls), 0);
+    return h('a', { href: partLink(p), 'data-part': String(p), 'aria-current': cur === p ? 'true' : 'false' },
+      h('small', null, `Part ${PART_NO[p]}`),
+      h('b', null, PART_NAME[p]),
+      compact ? null : h('span', { class: 'pn-meta' }, `${ms.length} module${ms.length > 1 ? 's' : ''} · ${nls} lessons`),
+      compact ? null : h('span', { class: 'pbar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.round(done / nls * 100)}%` })));
+  }));
 }
 
 /* ---------- overview ---------- */
@@ -16546,8 +16601,10 @@ function renderOverview(main) {
   const partHead = (eyebrow, title, text) => h('div', { class: 'part-head' }, h('div', null, h('span', { class: 'eyebrow' }, eyebrow), h('h2', null, title)), h('p', null, text));
   const byPart = p => MODULES.filter(m => m.g.part === p);
 
-  main.append(h('section', { class: 'part', 'aria-label': PART_LABEL[0] },
-    partHead(PART_LABEL[0], 'Start with the math', 'Linear algebra is the language of quantum computing. If vectors, matrices or tensor products feel rusty, begin here. If not, skip ahead and come back when you need a refresher.'),
+  const pnav = partNav(-1);
+  main.append(h('div', { class: 'partnav-wrap' }, pnav));
+  main.append(h('section', { class: 'part', id: 'part-1', 'aria-label': PART_LABEL[0] },
+    partHead(PART_LABEL[0], PART_SUB[0], 'Linear algebra is the language of quantum computing. If vectors, matrices or tensor products feel rusty, begin here. If not, skip ahead and come back when you need a refresher.'),
     h('div', { class: 'mgrid' }, ...byPart(0).map(m => { const c = modCard(m); c.classList.add('feat'); return c; }))));
 
   const descent = h('div', { class: 'descent' });
@@ -16555,12 +16612,12 @@ function renderOverview(main) {
     h('div', { class: 'dsc-temp' }, h('b', null, m.g.temp), h('small', null, m.g.name)),
     h('div', { class: 'dsc-rail', 'aria-hidden': 'true' }, h('span', { class: 'dsc-plate', style: `--w:${m.g.w}` }), h('i')),
     modCard(m))));
-  main.append(h('section', { class: 'part', 'aria-label': PART_LABEL[1] },
-    partHead(PART_LABEL[1], 'From 300 K to 10 mK', 'Five modules follow the same route as the qubits in a real machine. Each stage is colder than the last and each module goes a little deeper, from a single qubit to error-corrected hardware.'),
+  main.append(h('section', { class: 'part', id: 'part-2', 'aria-label': PART_LABEL[1] },
+    partHead(PART_LABEL[1], PART_SUB[1], 'Five modules follow the same route as the qubits in a real machine. Each stage is colder than the last and each module goes a little deeper, from a single qubit to error-corrected hardware.'),
     descent));
 
-  main.append(h('section', { class: 'part', 'aria-label': PART_LABEL[2] },
-    partHead(PART_LABEL[2], 'Into current research', 'Six tracks into where the field is working now. They assume the core path and use the same live labs, with the most room given to error correction and fault tolerance.'),
+  main.append(h('section', { class: 'part', id: 'part-3', 'aria-label': PART_LABEL[2] },
+    partHead(PART_LABEL[2], PART_SUB[2], 'Six tracks into where the field is working now. They assume the core path and use the same live labs, with the most room given to error correction and fault tolerance.'),
     h('div', { class: 'mgrid tracks' }, ...byPart(2).map(modCard))));
 
   const legBloch = canvas('sq', 'max-width:150px'), lb = new BlochView(legBloch, { labels: 'min', drag: false, trail: false }); lb.set([S2 * .9, S2 * .9 * .3, .55]);
@@ -16578,6 +16635,20 @@ function renderOverview(main) {
     h('div', { class: 'cta-card' },
       h('div', null, h('h3', null, 'Glossary'), h('p', null, `${window.GLOSSARY.length} short definitions, each linked to the lesson that explains it.`)),
       h('a', { class: 'btn', href: '#glossary' }, 'Open the glossary', ico('arrowR', 16)))));
+
+  const secs = [0, 1, 2].map(p => document.getElementById('part-' + PART_NO[p]));
+  const onScroll = () => {
+    const y = ((document.querySelector('.qs-top') || {}).offsetHeight || 68) + 140;
+    let cur = -1; secs.forEach((s, p) => { if (s && s.getBoundingClientRect().top <= y) cur = p; });
+    pnav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', String(+a.dataset.part === cur)));
+  };
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  spyOff = () => window.removeEventListener('scroll', onScroll);
+}
+function scrollToPart(n) {
+  const el = document.getElementById('part-' + n); if (!el) return;
+  const off = ((document.querySelector('.qs-top') || {}).offsetHeight || 68) + 96;
+  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 /* ---------- module page ---------- */
@@ -16585,7 +16656,7 @@ function renderModule(m, main) {
   setSide(null);
   const d = Prog.count(m.ls), n = m.ls.length, next = m.ls.find(l => !Prog.d.done[l.id]) || m.ls[0];
   const prev = MODULES[m.no - 2], after = MODULES[m.no];
-  main.append(h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#' }, 'Learn'), ico('chevR', 14), h('span', { 'aria-current': 'page' }, `Module ${pad2(m.no)}`)));
+  main.append(h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#' }, 'Learn'), ico('chevR', 14), h('a', { href: partLink(m.g.part) }, PART_LABEL[m.g.part]), ico('chevR', 14), h('span', { 'aria-current': 'page' }, `Module ${pad2(m.no)}`)));
   main.append(h('header', { class: 'mhero' },
     h('div', { class: 'mhero-copy' },
       h('div', { class: 'lh-eyebrow' }, h('span', { class: 'eyebrow' }, `Module ${pad2(m.no)} · ${PART_LABEL[m.g.part]}`), h('span', { class: 'tag' }, modKind(m))),
@@ -16619,6 +16690,7 @@ function renderLesson(L, main) {
   barBtn.addEventListener('click', () => openDrawer(barBtn));
   main.append(barBtn);
   main.append(h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#' }, 'Learn'), ico('chevR', 14),
+    h('a', { href: partLink(m.g.part) }, `Part ${PART_NO[m.g.part]}`), ico('chevR', 14),
     h('a', { href: '#module/' + m.no }, `Module ${pad2(m.no)} · ${m.g.title}`), ico('chevR', 14), h('span', { 'aria-current': 'page' }, `Lesson ${idx + 1}`)));
   main.append(h('header', { class: 'lh' },
     h('div', { class: 'lh-eyebrow' }, h('span', { class: 'eyebrow' }, `Lesson ${idx + 1} of ${m.ls.length}`), h('span', { class: 'tag' }, modTag(m)),
@@ -16830,9 +16902,11 @@ function renderGlossary(main) {
 }
 
 /* ---------- router ---------- */
-let firstRoute = true;
+let firstRoute = true, lastView = '';
 function route() {
   const id = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+  const partNo = /^part\/[123]$/.test(id) ? +id.slice(5) : 0;
+  if (partNo && lastView === 'overview') { scrollToPart(partNo); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
   const main = document.getElementById('main');
   if (spyOff) { spyOff(); spyOff = null; }
   Scope.reset(); main.innerHTML = '';
@@ -16841,10 +16915,12 @@ function route() {
   if (L) { Prog.seen(L.id); renderLesson(L, main); title = L.title; }
   else if (id.startsWith('module/') && MODULES[+id.slice(7) - 1]) { const m = MODULES[+id.slice(7) - 1]; renderModule(m, main); title = `Module ${pad2(m.no)} · ${m.g.title}`; }
   else if (id === 'glossary') { renderGlossary(main); title = 'Glossary'; }
-  else renderOverview(main);
+  else { renderOverview(main); if (partNo) title = PART_LABEL[PART_OF_NO[partNo]]; }
+  lastView = L ? 'lesson' : id.startsWith('module/') ? 'module' : id === 'glossary' ? 'glossary' : 'overview';
   document.title = `${title} · QSage`;
   closeDrawer();
-  if (!firstRoute) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }
+  if (partNo) requestAnimationFrame(() => { window.scrollTo(0, 0); scrollToPart(partNo); });
+  else if (!firstRoute) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }
   firstRoute = false;
 }
 Prog.load();
