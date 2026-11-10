@@ -1,0 +1,42 @@
+/* =====================================================================
+   QSage Learn · design tokens and base
+   Lab colours keep their names (--copper, --cyan) because lesson text
+   refers to "the copper arrow" and "the cyan line"; QSage UI uses --brand.
+   ===================================================================== */
+:root{
+  --f-display:"Space Grotesk","Inter",system-ui,sans-serif;
+  --f-body:"Inter","Noto Sans Math",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-math:"STIX Two Text","Noto Sans Math",Georgia,"Times New Roman",serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --side:304px; --top:68px;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark; --is-dark:1;
+  --bg:#06080D; --surface:#0E131C; --surface-2:#161D2A; --ink:#E4E9F1; --head:#FFFFFF; --muted:#9AA6B8; --line:#232D3E;
+  --copper:#EFA064; --copper-hi:#F7C99A; --copper-lo:#B8692F; --on-copper:#1B1007; --copper-wash:#2A1D12;
+  --cyan:#5CD6EE; --good:#4ADE80; --bad:#F87171; --scrim:rgba(0,0,0,.62);
+  --brand:#3B82F6; --brand-hi:#60A5FA; --brand-strong:#2563EB; --brand-soft:rgba(59,130,246,.14); --brand-ink:#BFD7FF;
+  --tab-active:rgba(255,255,255,.09); --tab-active-fg:#FFFFFF;
+  --track:rgba(255,255,255,.1); --glow:rgba(37,99,235,.32); --glow-2:rgba(92,242,246,.14);
+  --good-soft:rgba(74,222,128,.1); --bad-soft:rgba(248,113,113,.1); --top-bg:rgba(6,8,13,.8);
+}
+:root[data-theme="light"]{
+  color-scheme:light; --is-dark:0;
+  --bg:#F7F1EA; --surface:#FFFFFF; --surface-2:#F4EADF; --ink:#2A1C11; --head:#1E140C; --muted:#6B4D38; --line:#E8D9CA;
+  --copper:#B9531A; --copper-hi:#E8925A; --copper-lo:#873A0E; --on-copper:#FFF7EF; --copper-wash:#FBE5D4;
+  --cyan:#0B6D80; --good:#15803D; --bad:#B42318; --scrim:rgba(30,20,12,.42);
+  --brand:#E8590C; --brand-hi:#FF7A2E; --brand-strong:#C2410C; --brand-soft:rgba(255,120,40,.11); --brand-ink:#9A3A08;
+  --tab-active:#1E140C; --tab-active-fg:#FFFFFF;
+  --track:rgba(30,20,12,.09); --glow:rgba(255,138,61,.28); --glow-2:rgba(255,196,140,.32);
+  --good-soft:rgba(21,128,61,.08); --bad-soft:rgba(180,35,24,.07); --top-bg:rgba(247,241,234,.84);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:radial-gradient(70% 520px at 50% -160px,var(--glow),transparent 70%) no-repeat,var(--bg);color:var(--ink);
+  font-family:var(--f-body);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit}
+::selection{background:var(--brand-soft)}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+[hidden]{display:none!important}
+img{max-width:100%}
