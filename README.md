@@ -31,6 +31,10 @@ Open `index.html` in any modern browser. The home page's 3D model loads three.js
 
 The empty `.nojekyll` file tells GitHub Pages to serve the files as they are.
 
+## Publish on Cloudflare Pages with qmount.org (recommended)
+
+See **`DEPLOY-CLOUDFLARE.md`** for the full step-by-step guide: a free Cloudflare Pages project built from this repository, and the Hostinger domain `qmount.org` pointed at it by switching its nameservers to Cloudflare.
+
 ## Publish on Hostinger (your own domain)
 
 The site is just two files, `index.html` and `learn.html`, plus `.htaccess`. Either way below, first open **hPanel → Websites → your domain** and make sure the free **SSL** certificate is active, then turn on **Force HTTPS** (hPanel → Security → SSL).

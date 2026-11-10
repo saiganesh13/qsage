@@ -42,6 +42,10 @@ When the user asks to put the site on GitHub or publish it, do this:
 2. If anything in `course/` changed, run `python build.py`.
 3. `git add -A`, `git commit -m "<what changed>"`, `git push`. GitHub Pages redeploys automatically.
 
+## Task: deploy on Cloudflare Pages with qmount.org (current plan)
+
+The chosen hosting is **Cloudflare Pages** (free), with the domain `qmount.org` registered at Hostinger and its nameservers moved to Cloudflare. Follow `DEPLOY-CLOUDFLARE.md` step by step; it records the current state and every setting. Build command `mkdir -p dist && cp index.html learn.html dist/`, output directory `dist`, so only the two pages are published. The user signs in to Cloudflare, GitHub and Hostinger themselves; ask before saving the nameserver change.
+
 ## Task: publish on Hostinger
 
 The user hosts QMount on their own domain with Hostinger. Claude cannot log in to hPanel; the user does those steps (see README, "Publish on Hostinger").
