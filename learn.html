@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Learn · QSage</title>
-<meta name="description" content="QSage Learn: an interactive quantum computing course in twelve modules, with live labs and a ten-question check after every lesson.">
+<meta name="description" content="QSage Learn: an interactive quantum computing course in fourteen modules and four parts, with live labs and a ten-question check after every lesson.">
 <meta name="author" content="Sai Ganesh Chidambaram">
 <meta property="og:title" content="Learn quantum computing · QSage">
-<meta property="og:description" content="Twelve modules from the first qubit to fault-tolerant machines, with live labs and explained answers.">
+<meta property="og:description" content="Fourteen modules from the first qubit to superconducting hardware and fault-tolerant machines, with live labs and explained answers.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%23E8590C' stroke-width='2.2'%3E%3Ccircle cx='16' cy='16' r='11'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='4.2'/%3E%3Cpath d='M16 5v11l6.5-5.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <script>
@@ -485,6 +485,12 @@ select.sel{border-radius:12px;font-family:var(--f-body)}
 .pb-txt small{font:600 11px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--brand-ink)}
 .pb-txt b{font:600 14.5px/1 var(--f-display);letter-spacing:-.005em}
 .pb-meta{font:500 11.5px var(--f-mono);color:var(--muted);opacity:.8}
+.pb-short{display:none}
+@media (max-width:1700px){.pb-meta{display:none}}
+.qs-parts{justify-content:flex-start}
+.qs-parts>a:first-child{margin-left:auto}
+.qs-parts>a:last-child{margin-right:auto}
+@media (max-width:980px){.pb-long{display:none}.pb-short{display:inline}}
 @media (max-width:1100px){.pb-meta{display:none}}
 @media (max-width:720px){
   :root{--parts-row:46px}
@@ -758,6 +764,9 @@ kbd{font:600 11.5px var(--f-mono);padding:3px 7px;border-radius:7px;border:1px s
 .prose .qz-why-text p:last-child{margin:0}
 
 /* research tracks: featured card, then 3 + 2 */
+.mgrid.quad{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mgrid.quad>.mcard.feat{grid-column:auto}
+@media (max-width:760px){.mgrid.quad{grid-template-columns:minmax(0,1fr)}}
 .mgrid.tracks{grid-template-columns:repeat(6,minmax(0,1fr))}
 .mgrid.tracks>.mcard{grid-column:span 2}
 .mgrid.tracks>.mcard.feat{grid-column:1/-1}
@@ -16373,6 +16382,1023 @@ window.GLOSSARY_EXTRA.push(
 })();
 
 /* =====================================================================
+   Track · Superconducting circuits
+   LC oscillators, Josephson junctions, the transmon, fluxonium,
+   materials, losses and fabrication
+   ===================================================================== */
+
+/* ---------- shared numerics for the hardware tracks ---------- */
+/* Lowest k eigenvalues of a real symmetric tridiagonal matrix (diagonal d, off-diagonal e,
+   e[i] couples rows i and i + 1), by Sturm-sequence bisection. */
+function scTriEigs(d, e, k) {
+  const n = d.length; let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < n; i++) { const r = (i > 0 ? Math.abs(e[i - 1]) : 0) + (i < n - 1 ? Math.abs(e[i]) : 0); lo = Math.min(lo, d[i] - r); hi = Math.max(hi, d[i] + r); }
+  const below = x => { let c = 0, q = 1; for (let i = 0; i < n; i++) { q = d[i] - x - (i > 0 ? e[i - 1] * e[i - 1] / q : 0); if (q === 0) q = -1e-300; if (q < 0) c++; } return c; };
+  const out = [];
+  for (let j = 0; j < k; j++) { let a = lo, b = hi; for (let it = 0; it < 56; it++) { const mid = (a + b) / 2; if (below(mid) > j) b = mid; else a = mid; } out.push((a + b) / 2); lo = out[j] - 1e-9; }
+  return out;
+}
+/* Eigenvector of the same tridiagonal matrix for an eigenvalue lam, by inverse iteration (Thomas algorithm). */
+function scTriVec(d, e, lam) {
+  const n = d.length, sh = lam + 1e-10 * (Math.abs(lam) + 1);
+  let x = Float64Array.from({ length: n }, (_, i) => 1 + .37 * Math.sin(1.73 * i + .4));
+  for (let it = 0; it < 3; it++) {
+    const c = new Float64Array(n), y = new Float64Array(n);
+    let b = d[0] - sh; c[0] = n > 1 ? e[0] / b : 0; y[0] = x[0] / b;
+    for (let i = 1; i < n; i++) { b = d[i] - sh - e[i - 1] * c[i - 1]; if (Math.abs(b) < 1e-300) b = 1e-300; c[i] = i < n - 1 ? e[i] / b : 0; y[i] = (x[i] - e[i - 1] * y[i - 1]) / b; }
+    for (let i = n - 2; i >= 0; i--) y[i] -= c[i] * y[i + 1];
+    let s = 0; for (let i = 0; i < n; i++) s += y[i] * y[i]; s = Math.sqrt(s) || 1; for (let i = 0; i < n; i++) x[i] = y[i] / s;
+  }
+  return x;
+}
+/* Transmon / Cooper-pair box H = 4 E_C (n − n_g)² − E_J cos φ in the charge basis; returns the lowest k energies. */
+function scTransmon(EJ, EC, ng, k = 4, N = 14) {
+  const d = [], e = [];
+  for (let n = -N; n <= N; n++) { d.push(4 * EC * (n - ng) ** 2); if (n < N) e.push(-EJ / 2); }
+  return scTriEigs(d, e, k);
+}
+/* A circuit with a junction and an inductor, H = 4E_C n² − E_J cos(φ − φ_ext) + ½E_L φ², on a phase grid. */
+function scPhaseGrid(EJ, EC, EL, phiExt, k = 4, vecs = false, M = 360, span = 4 * Math.PI) {
+  const hgr = 2 * span / (M - 1), d = new Float64Array(M), e = new Float64Array(M - 1), ph = new Float64Array(M), U = new Float64Array(M);
+  for (let i = 0; i < M; i++) { const p = -span + i * hgr; ph[i] = p; U[i] = -EJ * Math.cos(p - phiExt) + .5 * EL * p * p; d[i] = 8 * EC / (hgr * hgr) + U[i]; if (i < M - 1) e[i] = -4 * EC / (hgr * hgr); }
+  const E = scTriEigs(Array.from(d), Array.from(e), k);
+  return { E, ph, U, psi: vecs ? E.map(l => scTriVec(d, e, l)) : null };
+}
+
+(() => {
+const SCQ = 12;
+const EC_PER_FF = 19.37;   /* E_C/h in GHz = 19.37 / C[fF]  (E_C = e²/2C) */
+const EL_PER_NH = 163.5;   /* E_L/h in GHz = 163.5 / L[nH]  (E_L = (Φ₀/2π)²/L) */
+const EJ_PER_UA = 497;     /* E_J/h in GHz = 497 × I_c[µA]  (E_J = Φ₀I_c/2π) */
+const KB_GHZ = 20.84;      /* k_B/h in GHz per kelvin */
+
+function hermiteFns(nmax, x) {
+  /* normalized harmonic-oscillator wavefunctions ψ_n(x) for x in units of the zero-point width */
+  const out = [], p0 = Math.pow(Math.PI, -.25) * Math.exp(-x * x / 2); out.push(p0);
+  if (nmax > 0) out.push(Math.SQRT2 * x * p0);
+  for (let n = 2; n <= nmax; n++) out.push(Math.sqrt(2 / n) * x * out[n - 1] - Math.sqrt((n - 1) / n) * out[n - 2]);
+  return out;
+}
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'lccircuit', n: 40.1, stage: SCQ, minutes: 14, title: 'A circuit as a quantum oscillator',
+  lede: 'An inductor and a capacitor make a resonator. Cool it below a tenth of a kelvin and it behaves like a single quantum particle in a parabolic well, with flux and charge as its position and momentum.',
+  html: `
+<h2>Circuits can be quantum</h2>
+<p>Superconducting qubits are electrical circuits: metal patterns on a chip, a few millimetres across. That a circuit you can see under a microscope behaves quantum mechanically was not obvious. The 2025 Nobel Prize in Physics went to John Clarke, Michel Devoret and John Martinis for showing, in 1984–85, that a superconducting circuit tunnels and has discrete energy levels like an atom. Every superconducting quantum processor builds on that result.</p>
+<p>Two things make it possible. <strong>Superconductivity</strong> removes resistance, so energy stored in the circuit does not leak away as heat; aluminium superconducts below about 1.2 K, niobium below 9.2 K and tantalum below 4.4 K. And the <strong>dilution refrigerator</strong> ([[L:cryostat]]) cools the chip to about 10 mK, far below the energy of one microwave photon, so the circuit sits in its quantum ground state.</p>
+<h2>Flux and charge</h2>
+<p>Take an inductor ${m('L')} in parallel with a capacitor ${m('C')}. Describe it by the <strong>node flux</strong> ${m('Φ')}, the time integral of the voltage across it, and the <strong>charge</strong> ${m('Q')} on the capacitor. The energy is</p>
+${EQ('H = Q²/2C + Φ²/2L')}
+<p>This is exactly a mass on a spring: ${m('Φ')} plays the position, ${m('Q')} the momentum, ${m('C')} the mass and ${m('1/L')} the spring constant. Quantum mechanics enters through one commutator, ${m('[Φ, Q] = iħ')}, and the rest follows from the textbook harmonic oscillator. The circuit has a ladder of levels</p>
+${EQ('E<sub>n</sub> = ħω (n + ½),&nbsp;&nbsp; ω = 1/√(LC)')}
+<p>With ${m('L = 10')} nH and ${m('C = 100')} fF, ${m('ω/2π ≈ 5')} GHz, a microwave frequency. Even the ground state is not still: flux and charge fluctuate by the <strong>zero-point</strong> amounts ${m('Φ<sub>zpf</sub> = √(ħZ/2)')} and ${m('Q<sub>zpf</sub> = √(ħ/2Z)')}, where ${m('Z = √(L/C)')} is the circuit’s impedance.</p>
+<h2>The units superconducting engineers use</h2>
+<p>Charge in a superconductor moves in <strong>Cooper pairs</strong>, so it is natural to count it as ${m('n = Q/2e')}, and to measure flux as a phase, ${m('φ = 2πΦ/Φ₀')}, where ${m('Φ₀ = h/2e ≈ 2.07 × 10⁻¹⁵')} Wb is the superconducting flux quantum. With the charging energy ${m('E<sub>C</sub> = e²/2C')} and the inductive energy ${m('E<sub>L</sub> = (Φ₀/2π)²/L')},</p>
+${EQ('H = 4E<sub>C</sub> n² + ½ E<sub>L</sub> φ²,&nbsp;&nbsp; ħω = √(8 E<sub>L</sub> E<sub>C</sub>)')}
+<p>The same Hamiltonian, written this way, will reappear in every lesson of this track, with one extra term each time.</p>
+${LAB('lc')}
+<h2>Why a resonator is not a qubit</h2>
+<p>All the gaps in the ladder are the same, ${m('ħω')}. A microwave pulse tuned to take the circuit from ${m('|0⟩')} to ${m('|1⟩')} is equally resonant with ${m('|1⟩ → |2⟩')}, ${m('|2⟩ → |3⟩')} and so on, so the state spreads up the ladder into a classical-looking coherent state instead of staying in a two-level subspace. To make a qubit, the levels must be unevenly spaced: the circuit needs a <strong>nonlinear</strong> element. That element is the Josephson junction ([[L:josephson]]).</p>
+${NOTE('Resonators are still essential', `<p>Linear resonators are everywhere on a quantum chip: they read qubits out ([[L:readout]]), filter their decay, carry interactions between them ([[L:cqedcouple]]) and, in 3D form, can even store quantum information themselves ([[L:cavities]]).</p>`)}
+`,
+  labs: {
+    lc: {
+      title: 'An LC circuit in its quantum ground state',
+      cap: 'The potential energy ½E_Lφ² is a parabola. The horizontal lines are the energy levels, evenly spaced by hf, and the curves are the wavefunctions of the lowest four levels plotted against the phase φ. The dashed line marks the thermal energy k_BT at the chosen temperature: when it is far below the first gap the circuit stays in its ground state.',
+      build(body, id) {
+        let L = 10, C = 100, Tm = 10;
+        const cv = canvas('', 'height:300px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const vals = () => { const EC = EC_PER_FF / C, EL = EL_PER_NH / L, f = Math.sqrt(8 * EL * EC), Z = Math.sqrt(L * 1e-9 / (C * 1e-15)), zpf = Math.pow(2 * EC / EL, .25); return { EC, EL, f, Z, zpf }; };
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), v = vals(), Emax = 4.6 * v.f, xm = Math.max(3.2 * v.zpf, Math.sqrt(2 * Emax / v.EL) * 1.08);
+          const A = axes(ctx, w, H, { x: [-xm, xm], y: [0, Emax], xt: [-xm, 0, xm].map(x => +x.toFixed(2)), xf: x => num(x, 2), yt: [0, v.f, 2 * v.f, 3 * v.f, 4 * v.f].map(x => +x.toFixed(3)), yf: y => num(y, 1), xl: 'phase φ (rad)', yl: 'energy / h (GHz)' });
+          const pts = []; for (let k = 0; k <= 200; k++) { const x = -xm + 2 * xm * k / 200; pts.push([A.X(x), A.Y(Math.min(Emax, .5 * v.EL * x * x))]); }
+          polyline(ctx, pts, T.muted, 2);
+          for (let n = 0; n < 4; n++) {
+            const E = v.f * (n + .5), xt = Math.sqrt(2 * E / v.EL);
+            polyline(ctx, [[A.X(-xt), A.Y(E)], [A.X(xt), A.Y(E)]], rgba(T.ink, .5), 1.2);
+            const wf = []; for (let k = 0; k <= 200; k++) { const x = -xm + 2 * xm * k / 200, y = hermiteFns(n, x / (Math.SQRT2 * v.zpf))[n]; wf.push([A.X(x), A.Y(E + y * v.f * .42)]); }
+            polyline(ctx, wf, n === 0 ? T.copper : T.cyan, 2);
+            txt(ctx, `n = ${n}`, A.R - 6, A.Y(E) - 8, { align: 'right', font: '600 10.5px "JetBrains Mono",monospace' });
+          }
+          const kT = KB_GHZ * Tm / 1000; if (kT < Emax) polyline(ctx, [[A.L, A.Y(kT)], [A.R, A.Y(kT)]], T.bad, 1.4, [5, 4]);
+          txt(ctx, `k_BT at ${Tm} mK`, A.L + 8, A.Y(Math.min(kT, Emax * .97)) - 9, { align: 'left', font: '600 10.5px "JetBrains Mono",monospace', color: T.bad });
+        });
+        const upd = () => {
+          const v = vals(), pth = 1 / (Math.exp(v.f / (KB_GHZ * Tm / 1000)) - 1);
+          ro.innerHTML = `<span class="k">frequency f = 1/(2π√LC) </span>${num(v.f, 3)} GHz<br><span class="k">impedance Z = √(L/C)     </span>${num(v.Z, 0)} Ω<br><span class="k">E_C/h, E_L/h             </span>${num(v.EC * 1000, 0)} MHz, ${num(v.EL, 2)} GHz<br><span class="k">zero-point phase φ_zpf   </span>${num(v.zpf, 3)} rad<br><span class="k">thermal photons at ${Tm} mK </span>${sci(pth, 2)}`;
+          p.inv();
+        };
+        body.append(h('div', { class: 'split wide-l' }, cv, h('div', { class: 'stack' },
+          slider({ id: id('L'), label: 'Inductance L', min: 1, max: 40, step: .5, value: L, fmt: v => num(v, 1) + ' nH', on: v => { L = v; upd(); } }),
+          slider({ id: id('C'), label: 'Capacitance C', min: 20, max: 500, step: 5, value: C, fmt: v => v + ' fF', on: v => { C = v; upd(); } }),
+          slider({ id: id('T'), label: 'Temperature', min: 10, max: 400, step: 5, value: Tm, fmt: v => v + ' mK', on: v => { Tm = v; upd(); } }), ro)));
+        upd();
+      }
+    }
+  },
+  take: ['An LC circuit is a harmonic oscillator: flux plays position, charge plays momentum, and [Φ, Q] = iħ.',
+    'Its levels are evenly spaced by ħω with ω = 1/√(LC), a few gigahertz for nanohenries and tens of femtofarads.',
+    'In superconducting units, H = 4E_C n² + ½E_Lφ² with n = Q/2e, φ = 2πΦ/Φ₀ and ħω = √(8E_LE_C).',
+    'Equal spacing means a pulse cannot single out two levels, so a qubit needs a nonlinear element: the Josephson junction.'],
+  quiz: QZ([
+    ['In the analogy between an LC circuit and a mass on a spring, what plays the role of position?', ['The charge Q', 'The node flux Φ', 'The current', 'The capacitance'], 1, 'With H = Q²/2C + Φ²/2L, flux sits where position does (in the potential term) and charge where momentum does (in the kinetic term), with C as the mass.'],
+    ['What is the resonance frequency of an LC circuit with L = 10 nH and C = 100 fF?', ['About 50 MHz', 'About 5 GHz', 'About 500 GHz', 'About 5 THz'], 1, '1/(2π√(10⁻⁸ × 10⁻¹³)) = 1/(2π × 3.16 × 10⁻¹¹) ≈ 5.0 × 10⁹ Hz.'],
+    ['Why must the circuit be superconducting?', ['To make it smaller', 'So that energy is not lost to resistance, which would destroy coherence', 'To raise its frequency', 'To make it magnetic'], 1, 'Resistance dissipates energy as heat and couples the circuit to an environment that decoheres it. Superconductors carry current without loss.'],
+    ['Which commutator quantizes the circuit?', ['[L, C] = iħ', '[Φ, Q] = iħ', '[V, I] = iħ', '[E, t] = iħ'], 1, 'Flux and charge are canonically conjugate, like position and momentum, so [Φ, Q] = iħ.'],
+    ['What is the flux quantum Φ₀?', ['h/e', 'h/2e, about 2.07 × 10⁻¹⁵ Wb', 'e/h', '2e/h'], 1, 'Superconducting charge carriers are Cooper pairs of charge 2e, so the flux quantum is h/2e.'],
+    ['What is the charging energy E_C in the convention used here?', ['e²/C', 'e²/2C', '2e²/C', 'Φ₀²/2L'], 1, 'E_C = e²/2C is the energy to add one electron. A Cooper pair costs (2e)²/2C = 4E_C, which is why the Hamiltonian reads 4E_C n².'],
+    ['In these units, the oscillator frequency is', ['ħω = E_L + E_C', 'ħω = √(8E_LE_C)', 'ħω = E_L/E_C', 'ħω = 4E_C'], 1, 'Matching 4E_C n² + ½E_Lφ² to p²/2m + ½mω²x² gives ħω = √(8E_LE_C), which equals ħ/√(LC).'],
+    ['Why is a plain LC resonator not a good qubit?', ['Its frequency is too high', 'Its levels are evenly spaced, so a pulse that drives 0→1 also drives 1→2 and higher', 'It cannot be cooled', 'It has no ground state'], 1, 'Equal spacing makes every transition resonant with the same pulse, so the state leaves the two-level subspace.'],
+    ['Why is a temperature of about 10 mK needed for a 5 GHz circuit?', ['So the metal does not melt', 'Because hf/k_B ≈ 0.24 K, and the circuit must be much colder than that to stay in its ground state', 'To make the circuit faster', 'Because aluminium only superconducts below 10 mK'], 1, 'The thermal population of the first excited state goes like exp(−hf/k_BT). At 10 mK and 5 GHz it is about 10⁻¹⁰.'],
+    ['What did Clarke, Devoret and Martinis demonstrate in 1984–85?', ['The first transmon', 'That a macroscopic superconducting circuit shows quantum tunnelling and discrete energy levels', 'The first quantum error correction', 'High-temperature superconductivity'], 1, 'Their experiments on a current-biased Josephson junction showed macroscopic quantum tunnelling and energy quantization, the basis of superconducting qubits (Nobel Prize 2025).']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'josephson', n: 40.2, stage: SCQ, minutes: 15, title: 'The Josephson junction: a nonlinear inductor',
+  lede: 'Two superconductors separated by a nanometre of oxide let Cooper pairs tunnel through. The result behaves like an inductor whose inductance depends on the current, and that one nonlinearity is what turns a resonator into a qubit.',
+  html: `
+<h2>Tunnelling Cooper pairs</h2>
+<p>A superconductor is described by a single macroscopic wavefunction with a well-defined phase. A <strong>Josephson junction</strong> is two superconducting electrodes, almost always aluminium, separated by an insulating barrier of aluminium oxide about 1–2 nm thick. Cooper pairs tunnel coherently through it, and the junction is described by one variable, the <strong>phase difference</strong> ${m('φ')} across it. Brian Josephson predicted in 1962 that</p>
+${EQ('I = I<sub>c</sub> sin φ,&nbsp;&nbsp; dφ/dt = 2eV/ħ')}
+<p>where ${m('I<sub>c</sub>')} is the junction’s <strong>critical current</strong>, typically 10–50 nA for a qubit junction.</p>
+<h2>An inductor that depends on the current</h2>
+<p>Combine the two relations: a changing current gives ${m('dI/dt = I<sub>c</sub> cos φ · dφ/dt')}, and so a voltage ${m('V = L<sub>J</sub> dI/dt')} with</p>
+${EQ('L<sub>J</sub>(φ) = Φ₀ / (2π I<sub>c</sub> cos φ)')}
+<p>The junction is an inductor, but a nonlinear one: its inductance grows as more current flows. Its stored energy is ${m('U(φ) = −E<sub>J</sub> cos φ')}, with the <strong>Josephson energy</strong> ${m('E<sub>J</sub> = Φ₀I<sub>c</sub>/2π')}, about 15 GHz × ${m('h')} for 30 nA. Near ${m('φ = 0')}, ${m('L<sub>J</sub> ≈ Φ₀/2πI<sub>c</sub> ≈ 11')} nH, comparable to the inductor in [[L:lccircuit]]. Importantly, a junction has essentially no loss: it is a non-dissipative nonlinearity, which almost nothing else at microwave frequencies is.</p>
+<h2>Replacing the inductor</h2>
+<p>Put a junction where the inductor was and the Hamiltonian becomes</p>
+${EQ('H = 4E<sub>C</sub> n² − E<sub>J</sub> cos φ')}
+<p>Expanding the cosine, ${m('−E<sub>J</sub> cos φ ≈ −E<sub>J</sub> + E<sub>J</sub>φ²/2 − E<sub>J</sub>φ⁴/24')}. The first two terms are an LC oscillator with frequency ${m('√(8E<sub>J</sub>E<sub>C</sub>)')}, the <strong>plasma frequency</strong>. The quartic term softens the well, so higher levels sit lower than the harmonic ladder predicts. The gap from ${m('|1⟩')} to ${m('|2⟩')} is smaller than the gap from ${m('|0⟩')} to ${m('|1⟩')} by the <strong>anharmonicity</strong> ${m('α')}, which in the transmon regime is close to ${m('−E<sub>C</sub>')}, a couple of hundred megahertz. That is enough for a pulse at ${m('f₀₁')} to leave ${m('|2⟩')} alone.</p>
+${LAB('well')}
+<h2>Setting the junction: Ambegaokar–Baratoff</h2>
+<p>The critical current is set by the oxide thickness and the junction area, typically 0.01–0.05 µm². A convenient fact makes fabrication manageable: ${m('I<sub>c</sub> R<sub>n</sub> = πΔ/2e')}, where ${m('R<sub>n</sub>')} is the junction’s normal-state resistance and ${m('Δ')} the superconducting gap (about 180 µeV for thin aluminium). Measuring the resistance at room temperature, before the chip is ever cooled, predicts ${m('E<sub>J</sub>')} and so the qubit frequency to within a few per cent.</p>
+<h2>Tuning with a SQUID</h2>
+<p>Two junctions in a small loop form a <strong>SQUID</strong> (superconducting quantum interference device). Magnetic flux ${m('Φ')} threading the loop makes the two junctions interfere, and the pair acts like one junction with a tunable energy</p>
+${EQ('E<sub>J</sub>(Φ) = E<sub>JΣ</sub> |cos(πΦ/Φ₀)| √(1 + d² tan²(πΦ/Φ₀))')}
+<p>where ${m('d')} measures the asymmetry between the two junctions. A current in a nearby on-chip flux line sets the qubit frequency, which is how flux-tunable processors bring qubits into resonance for two-qubit gates ([[L:cqedcouple]]). The price is sensitivity to <strong>flux noise</strong>, which has a 1/f spectrum of a few µΦ₀ and comes from magnetic defects on surfaces. At the top of the tuning curve, the <strong>sweet spot</strong>, the frequency is first-order insensitive to flux; away from it, flux noise dephases the qubit.</p>
+${LAB('squid')}
+`,
+  labs: {
+    well: {
+      title: 'A cosine well and its uneven ladder',
+      cap: 'The junction potential −E_J cos φ (solid) compared with the parabola of a linear inductor with the same inductance at φ = 0 (dashed). Solid lines are the transmon levels found by diagonalizing H = 4E_C n² − E_J cos φ; dashed lines are the evenly spaced levels of the matching LC oscillator. The softer cosine pulls every level down, and more so the higher it is.',
+      build(body, id) {
+        let r = 50, EC = .22;
+        const cv = canvas('', 'height:300px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), EJ = r * EC, E = scTransmon(EJ, EC, 0, 5), wp = Math.sqrt(8 * EJ * EC), top = E[4] + EJ + .5 * wp;
+          const A = axes(ctx, w, H, { x: [-Math.PI, Math.PI], y: [0, top], xt: [-3, -2, -1, 0, 1, 2, 3], yt: [0, Math.round(top / 2), Math.round(top)], yf: y => num(y, 0), xl: 'phase φ (rad)', yl: 'energy above the well bottom / h (GHz)' });
+          const cosP = [], harP = []; for (let k = 0; k <= 240; k++) { const x = -Math.PI + TAU * k / 240; cosP.push([A.X(x), A.Y(EJ * (1 - Math.cos(x)))]); harP.push([A.X(x), A.Y(Math.min(top, EJ * x * x / 2))]); }
+          polyline(ctx, harP, T.muted, 1.4, [5, 4]); polyline(ctx, cosP, T.ink, 2.2);
+          for (let n = 0; n < 5; n++) {
+            const Eh = wp * (n + .5), xh = Math.sqrt(2 * Eh / EJ); if (Eh < top) polyline(ctx, [[A.X(-xh), A.Y(Eh)], [A.X(xh), A.Y(Eh)]], T.muted, 1.2, [4, 3]);
+            const Et = E[n] + EJ, c = 1 - Et / EJ, xt = Math.abs(c) <= 1 ? Math.acos(c) : Math.PI;
+            polyline(ctx, [[A.X(-xt), A.Y(Et)], [A.X(xt), A.Y(Et)]], n < 2 ? T.copper : T.cyan, 2.4);
+            txt(ctx, `|${n}⟩`, A.X(xt) + 8, A.Y(Et), { align: 'left', font: MATHFONT(14), color: T.ink });
+          }
+        });
+        const upd = () => {
+          const EJ = r * EC, E = scTransmon(EJ, EC, 0, 4), f01 = E[1] - E[0], f12 = E[2] - E[1];
+          ro.innerHTML = `<span class="k">E_J/h                   </span>${num(EJ, 2)} GHz<br><span class="k">plasma frequency √(8E_JE_C) </span>${num(Math.sqrt(8 * EJ * EC), 3)} GHz<br><span class="k">f₀₁ (exact)             </span>${num(f01, 3)} GHz<br><span class="k">f₁₂ (exact)             </span>${num(f12, 3)} GHz<br><span class="k">anharmonicity α = f₁₂ − f₀₁ </span>${num((f12 - f01) * 1000, 0)} MHz &nbsp;(−E_C = ${num(-EC * 1000, 0)} MHz)`;
+          p.inv();
+        };
+        body.append(h('div', { class: 'split wide-l' }, cv, h('div', { class: 'stack' },
+          slider({ id: id('r'), label: 'E_J / E_C', min: 5, max: 120, step: 1, value: r, fmt: v => String(v), on: v => { r = v; upd(); } }),
+          slider({ id: id('c'), label: 'Charging energy E_C/h', min: .1, max: .4, step: .01, value: EC, fmt: v => num(v * 1000, 0) + ' MHz', on: v => { EC = v; upd(); } }), ro)));
+        upd();
+      }
+    },
+    squid: {
+      title: 'Tuning a qubit with flux',
+      cap: 'The qubit frequency f₀₁ against the flux through the SQUID loop, computed exactly from the transmon Hamiltonian with E_J(Φ). Drag the operating point along the curve. The slope sets how much a typical flux-noise fluctuation of 2 µΦ₀ moves the frequency: zero at the sweet spot, large on the flanks. A larger asymmetry d narrows the tuning range but keeps the slope small everywhere.',
+      build(body, id) {
+        let EJS = 22, EC = .22, dA = 0, phi = .15;
+        const cv = canvas('', 'height:280px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const EJf = x => { const c = Math.cos(Math.PI * x), t = Math.tan(Math.PI * x); return EJS * Math.abs(c) * Math.sqrt(1 + dA * dA * t * t); };
+        const f01 = x => { const E = scTransmon(EJf(x), EC, .25, 2); return E[1] - E[0]; };
+        let curve = [];
+        const recompute = () => { curve = []; for (let k = 0; k <= 160; k++) { const x = -1 + 2 * k / 160, xx = Math.abs(Math.abs(x) - .5) < 1e-6 ? x + 1e-6 : x; curve.push([x, f01(xx)]); } };
+        let G = null;
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), fmax = Math.max(...curve.map(c => c[1])) * 1.06;
+          const A = axes(ctx, w, H, { x: [-1, 1], y: [0, fmax], xt: [-1, -.5, 0, .5, 1], yt: [0, 2, 4, 6, 8].filter(v => v < fmax), xl: 'flux Φ / Φ₀', yl: 'f₀₁ (GHz)' }); G = A;
+          polyline(ctx, curve.map(([x, f]) => [A.X(x), A.Y(f)]), T.cyan, 2.4);
+          const f = f01(phi); dot(ctx, A.X(phi), A.Y(f), 7, T.copper, T.surface);
+          const s = (f01(phi + 1e-3) - f01(phi - 1e-3)) / 2e-3, dx = .18; polyline(ctx, [[A.X(phi - dx), A.Y(f - s * dx)], [A.X(phi + dx), A.Y(f + s * dx)]], T.copper, 1.4, [4, 3]);
+          txt(ctx, 'sweet spot', A.X(0), A.Y(curve[80][1]) - 12, { font: '600 10.5px "JetBrains Mono",monospace', color: T.good });
+        });
+        const upd = () => {
+          const f = f01(phi), s = Math.abs(f01(phi + 1e-3) - f01(phi - 1e-3)) / 2e-3, df = s * 2e-6 * 1e6;
+          ro.innerHTML = `<span class="k">operating point Φ/Φ₀ </span>${num(phi, 3)}<br><span class="k">f₀₁                  </span>${num(f, 3)} GHz<br><span class="k">slope |∂f/∂Φ|        </span>${num(s, 2)} GHz/Φ₀<br><span class="k">shift for 2 µΦ₀      </span>${num(df, 1)} kHz<br><span class="k">dephasing time scale ~1/(2π·shift) </span>${df < .05 ? 'flux-insensitive' : fmtSI(1 / (TAU * df * 1e3), 's', 1)}`;
+          p.inv();
+        };
+        dragHandles(cv, () => 'p', (k, x) => { if (!G) return; phi = clamp(-1 + (x - G.L) / (G.R - G.L) * 2, -1, 1); if (Math.abs(Math.abs(phi) - .5) < .002) phi += .003; upd(); });
+        body.append(h('div', { class: 'split wide-l' }, cv, h('div', { class: 'stack' },
+          slider({ id: id('j'), label: 'Total E_JΣ/h', min: 8, max: 40, step: .5, value: EJS, fmt: v => num(v, 1) + ' GHz', on: v => { EJS = v; recompute(); upd(); } }),
+          slider({ id: id('d'), label: 'Junction asymmetry d', min: 0, max: .7, step: .01, value: dA, fmt: v => num(v, 2), on: v => { dA = v; recompute(); upd(); } }),
+          slider({ id: id('ph'), label: 'Operating flux Φ/Φ₀', min: -1, max: 1, step: .005, value: phi, fmt: v => num(v, 3), on: v => { phi = Math.abs(Math.abs(v) - .5) < .002 ? v + .003 : v; upd(); } }), ro)));
+        recompute(); upd();
+      }
+    }
+  },
+  take: ['A Josephson junction is two superconductors separated by a thin oxide; Cooper pairs tunnel through it, giving I = I_c sin φ and dφ/dt = 2eV/ħ.',
+    'It behaves as a lossless nonlinear inductor, L_J = Φ₀/(2πI_c cos φ), with energy −E_J cos φ.',
+    'Replacing the inductor of an LC circuit with a junction softens the well, so levels are unevenly spaced; the anharmonicity is about −E_C.',
+    'Two junctions in a loop (a SQUID) give a flux-tunable E_J; the sweet spot at the top of the tuning curve is first-order insensitive to flux noise.'],
+  quiz: QZ([
+    ['What is a Josephson junction in a superconducting qubit?', ['A semiconductor diode', 'Two superconducting electrodes separated by a thin insulating barrier', 'A small capacitor', 'A coil of wire'], 1, 'Qubit junctions are aluminium electrodes separated by about 1–2 nm of aluminium oxide, through which Cooper pairs tunnel.'],
+    ['Which pair of relations describes an ideal junction?', ['V = IR and P = IV', 'I = I_c sin φ and dφ/dt = 2eV/ħ', 'Q = CV and Φ = LI', 'I = I_c φ and V = 0'], 1, 'These are the two Josephson relations: the supercurrent depends sinusoidally on the phase difference, and a voltage makes the phase wind.'],
+    ['Why is the junction called a nonlinear inductor?', ['It has resistance', 'Its inductance L_J = Φ₀/(2πI_c cos φ) depends on the phase, and hence on the current', 'Its capacitance changes', 'It only works at high frequency'], 1, 'For a linear inductor L is constant. For a junction L_J changes with φ, so the energy is −E_J cos φ rather than a parabola.'],
+    ['What is the Josephson energy E_J?', ['Φ₀I_c/2π', 'e²/2C', 'I_c R_n', '2eV'], 0, 'E_J = Φ₀I_c/2π = ħI_c/2e. For I_c = 30 nA this is about h × 15 GHz.'],
+    ['What does the quartic term in the expansion of −E_J cos φ do to the levels?', ['Raises all of them equally', 'Softens the well, so higher levels sit progressively lower and the spacing shrinks', 'Makes them evenly spaced', 'Removes the ground state'], 1, 'The −E_Jφ⁴/24 term lowers the potential at larger φ. Higher levels, which spread further, are lowered more, giving negative anharmonicity.'],
+    ['In the transmon regime the anharmonicity α is approximately', ['+E_J', '−E_C', '0', '−E_J'], 1, 'First-order perturbation theory in the quartic term gives α ≈ −E_C, typically −200 to −300 MHz.'],
+    ['What does the Ambegaokar–Baratoff relation let fabricators do?', ['Measure T₁ at room temperature', 'Predict a junction’s critical current, and so the qubit frequency, from its room-temperature resistance', 'Avoid using aluminium', 'Remove flux noise'], 1, 'I_cR_n = πΔ/2e, so measuring R_n at room temperature gives I_c and E_J before the chip is cooled.'],
+    ['What does a SQUID add to a transmon?', ['Higher anharmonicity', 'A flux-tunable Josephson energy, and therefore a tunable frequency', 'Lower temperature', 'A readout resonator'], 1, 'Flux through the loop makes the two junctions interfere: E_J(Φ) = E_JΣ|cos(πΦ/Φ₀)| for a symmetric SQUID.'],
+    ['Why do flux-tunable qubits like to sit at the sweet spot?', ['It gives the highest anharmonicity', 'There ∂f/∂Φ = 0, so flux noise does not shift the frequency to first order', 'The qubit is easiest to read out there', 'It is the only frequency that works'], 1, 'Dephasing from flux noise scales with the slope of the tuning curve, which vanishes at its maximum.'],
+    ['What does making the SQUID asymmetric (d > 0) do?', ['Removes the sweet spot', 'Limits the tuning range but lowers the slope away from the sweet spot, reducing flux-noise sensitivity', 'Doubles the frequency', 'Makes the qubit harmonic'], 1, 'With asymmetric junctions E_J never goes to zero, so the curve is flatter: less tunability but less flux-noise dephasing at most operating points.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'transmon', n: 40.3, stage: SCQ, minutes: 16, title: 'From Cooper-pair box to transmon',
+  lede: 'The first superconducting qubits were exquisitely sensitive to stray charges. Shunting the junction with a large capacitor fixed that, at the cost of a little anharmonicity, and produced the transmon, the workhorse of today’s processors.',
+  html: `
+<h2>The Cooper-pair box</h2>
+<p>The first superconducting qubit with coherent oscillations (Nakamura, Pashkin and Tsai, 1999) was a <strong>Cooper-pair box</strong>: a tiny superconducting island connected to a reservoir through a junction, with a gate electrode nearby. Its Hamiltonian is</p>
+${EQ('H = 4E<sub>C</sub> (n − n<sub>g</sub>)² − E<sub>J</sub> cos φ')}
+<p>Here ${m('n')} counts Cooper pairs that have tunnelled onto the island and ${m('n<sub>g</sub>')} is the <strong>offset charge</strong>, set by the gate voltage and by any stray charges nearby, measured in units of ${m('2e')}. In the Cooper-pair box ${m('E<sub>J</sub>')} and ${m('E<sub>C</sub>')} are comparable, the energy levels depend strongly on ${m('n<sub>g</sub>')}, and the qubit frequency jumps whenever a charged defect in the substrate fluctuates. Coherence times were nanoseconds.</p>
+<h2>Diagonalizing in the charge basis</h2>
+<p>Since ${m('e<sup>iφ</sup>')} moves one Cooper pair across the junction, ${m('cos φ = ½ Σ (|n⟩⟨n+1| + |n+1⟩⟨n|)')}. In the basis of charge states ${m('|n⟩')}, the Hamiltonian is a tridiagonal matrix with ${m('4E<sub>C</sub>(n − n<sub>g</sub>)²')} on the diagonal and ${m('−E<sub>J</sub>/2')} beside it. A few dozen charge states are enough to compute the levels exactly, which is what the lab below does.</p>
+<h2>The transmon idea</h2>
+<p>Koch and colleagues (2007) noticed that the two quantities that matter scale very differently with ${m('E<sub>J</sub>/E<sub>C</sub>')}. The <strong>charge dispersion</strong>, how far a level moves as ${m('n<sub>g</sub>')} varies, falls exponentially:</p>
+${EQ('ε<sub>m</sub> ∝ e<sup>−√(8E<sub>J</sub>/E<sub>C</sub>)</sup>')}
+<p>while the anharmonicity falls only slowly, approaching ${m('α ≈ −E<sub>C</sub>')}. So add a large shunt capacitor, which lowers ${m('E<sub>C</sub>')} to about 200–300 MHz, and raise ${m('E<sub>J</sub>/E<sub>C</sub>')} to about 50. The charge sensitivity drops by many orders of magnitude, to well below a kilohertz, and the anharmonicity is still large enough to address ${m('|0⟩ ↔ |1⟩')} selectively. The circuit became the <strong>transmon</strong> (transmission-line shunted plasma oscillation qubit).</p>
+${LAB('koch')}
+<h2>The transmon in numbers</h2>
+<ul>
+<li><strong>Frequency.</strong> ${m('f₀₁ ≈ √(8E<sub>J</sub>E<sub>C</sub>) − E<sub>C</sub>')}, typically 4–6 GHz.</li>
+<li><strong>Anharmonicity.</strong> ${m('α ≈ −E<sub>C</sub>')}, about −200 to −300 MHz. It limits how fast gates can be before they leak into ${m('|2⟩')}; DRAG pulses push that limit ([[L:pulses]]).</li>
+<li><strong>Shape.</strong> The shunt capacitor is two large metal pads or a cross (the <strong>Xmon</strong>), with total capacitance of 70–100 fF. Its electric field spreads through the substrate and surfaces, which is where most loss now comes from ([[L:scmaterials]]).</li>
+<li><strong>Coherence.</strong> Early transmons reached about 1 µs; today ${m('T₁')} of 100–500 µs is routine and the best devices exceed a millisecond.</li>
+</ul>
+${NOTE('Why the transmon won', `<p>The transmon is simple: one junction (or a SQUID for tunability), a capacitor and nothing else. It is insensitive to charge noise, needs no bias at its sweet spot, and its weak anharmonicity is a manageable engineering problem. Google, IBM, Rigetti, the Chinese Zuchongzhi processors and many others are built on transmons or close relatives.</p>`)}
+`,
+  labs: {
+    koch: {
+      title: 'Charge dispersion against E_J / E_C',
+      cap: 'Left: the lowest four levels against the offset charge n_g, computed exactly in the charge basis and normalized by the 0→1 energy at n_g = ½. At small E_J/E_C (a Cooper-pair box) the bands swing wildly with n_g; at E_J/E_C ≈ 50 (a transmon) they are flat. Right: on a log scale, the charge dispersion of the 0→1 transition falls exponentially while the anharmonicity barely changes.',
+      build(body, id) {
+        let lr = Math.log10(1), EC = .25;
+        const cv = canvas('', 'height:290px'), cs = canvas('', 'height:290px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        let bands = null, scan = null;
+        const disp = (r) => { const EJ = r * EC, a = scTransmon(EJ, EC, 0, 3), b = scTransmon(EJ, EC, .5, 3); return { e01: Math.abs((a[1] - a[0]) - (b[1] - b[0])), alpha: Math.abs((b[2] - b[1]) - (b[1] - b[0])), f01: (b[1] - b[0] + a[1] - a[0]) / 2 }; };
+        const compute = () => {
+          const r = 10 ** lr, EJ = r * EC, ref = scTransmon(EJ, EC, .5, 2), E01 = ref[1] - ref[0];
+          bands = []; for (let k = 0; k <= 120; k++) { const ng = -1 + 2 * k / 120, E = scTransmon(EJ, EC, ng, 4); bands.push([ng, E.map(x => (x - ref[0]) / E01)]); }
+          if (!scan) { scan = []; for (let k = 0; k <= 60; k++) { const rr = 10 ** (-.3 + 2.3 * k / 60); scan.push([rr, disp(rr)]); } }
+        };
+        const p1 = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), ymax = 4.2, ymin = Math.max(-1.6, Math.min(-.4, Math.min(...bands.map(b => b[1][0]))));
+          const A = axes(ctx, w, H, { x: [-1, 1], y: [ymin, ymax], xt: [-1, -.5, 0, .5, 1], yt: [0, 1, 2, 3, 4], xl: 'offset charge n_g', yl: 'E_m / E₀₁' });
+          const cols = [T.copper, T.cyan, T.muted, T.muted];
+          ctx.save(); ctx.beginPath(); ctx.rect(A.L, A.T, A.R - A.L, A.B - A.T); ctx.clip();
+          for (let m2 = 0; m2 < 4; m2++) polyline(ctx, bands.map(([ng, E]) => [A.X(ng), A.Y(E[m2])]), cols[m2], m2 < 2 ? 2.4 : 1.6);
+          ctx.restore();
+        });
+        const p2 = painter(cs, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), A = axes(ctx, w, H, { x: [.5, 200], y: [1e-6, 10], xlog: true, ylog: true, xt: [1, 10, 100], yt: [1e-6, 1e-4, 1e-2, 1], yf: v => v >= 1 ? String(v) : '10' + sup(Math.round(Math.log10(v))), xl: 'E_J / E_C', yl: 'GHz' });
+          polyline(ctx, scan.map(([r, d]) => [A.X(r), A.Y(clamp(d.e01, 1e-6, 10))]), T.copper, 2.3);
+          polyline(ctx, scan.map(([r, d]) => [A.X(r), A.Y(clamp(d.alpha, 1e-6, 10))]), T.cyan, 2.3);
+          const r = 10 ** lr; polyline(ctx, [[A.X(r), A.T], [A.X(r), A.B]], T.ink, 1.2, [4, 3]);
+          txt(ctx, 'charge dispersion', A.X(30), A.Y(3e-5), { font: '600 10.5px "JetBrains Mono",monospace', color: T.copper });
+          txt(ctx, '|anharmonicity|', A.X(30), A.Y(.6), { font: '600 10.5px "JetBrains Mono",monospace', color: T.cyan });
+        });
+        const upd = () => {
+          compute(); const r = 10 ** lr, d = disp(r);
+          ro.innerHTML = `<span class="k">E_J/E_C </span>${num(r, r < 10 ? 2 : 1)} &nbsp; <span class="k">E_J/h </span>${num(r * EC, 2)} GHz<br><span class="k">f₀₁ (averaged over n_g)    </span>${num(d.f01, 3)} GHz<br><span class="k">anharmonicity |α|          </span>${num(d.alpha * 1000, 0)} MHz<br><span class="k">charge dispersion of f₀₁   </span>${d.e01 * 1e3 >= 1 ? num(d.e01 * 1000, 1) + ' MHz' : num(d.e01 * 1e6, d.e01 * 1e6 < 1 ? 3 : 1) + ' kHz'}<br><span class="k">regime </span>${r < 3 ? 'Cooper-pair box' : r < 20 ? 'in between' : 'transmon'}`;
+          p1.inv(); p2.inv();
+        };
+        body.append(h('div', { class: 'split even' }, cv, cs), h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, slider({ id: id('r'), label: 'E_J / E_C (log scale)', min: -.3, max: 2.3, step: .01, value: lr, fmt: v => num(10 ** v, 10 ** v < 10 ? 2 : 1), on: v => { lr = v; upd(); } }),
+            slider({ id: id('c'), label: 'Charging energy E_C/h', min: .15, max: .4, step: .01, value: EC, fmt: v => num(v * 1000, 0) + ' MHz', on: v => { EC = v; scan = null; upd(); } }),
+            h('div', { class: 'btns' }, btn('Cooper-pair box (1)', () => { lr = 0; body.querySelector('input[type=range]').value = 0; body.querySelector('input[type=range]').dispatchEvent(new Event('input')); }, 'sm'),
+              btn('Transmon (50)', () => { lr = Math.log10(50); const s = body.querySelector('input[type=range]'); s.value = lr; s.dispatchEvent(new Event('input')); }, 'sm'))), ro));
+        upd();
+      }
+    }
+  },
+  take: ['The Cooper-pair box, H = 4E_C(n − n_g)² − E_J cos φ with E_J ≈ E_C, has levels that move with the offset charge n_g, so charge noise dephases it.',
+    'In the charge basis the Hamiltonian is tridiagonal and easy to diagonalize exactly.',
+    'Charge dispersion falls exponentially in √(8E_J/E_C) while the anharmonicity only approaches −E_C, so a large shunt capacitor (E_J/E_C ≈ 50) makes a charge-insensitive qubit: the transmon.',
+    'Typical transmons have f₀₁ of 4–6 GHz, α of −200 to −300 MHz and T₁ of hundreds of microseconds.'],
+  quiz: QZ([
+    ['What does the offset charge n_g represent?', ['The number of qubits', 'The charge induced on the island by gate voltages and stray charges, in units of 2e', 'The Josephson energy', 'The temperature'], 1, 'n_g enters as 4E_C(n − n_g)²: it shifts the electrostatic energy. Stray charges in the environment make it fluctuate.'],
+    ['Why did early Cooper-pair boxes have very short coherence times?', ['They were too cold', 'Their energy levels depended strongly on n_g, so fluctuating background charges shifted the qubit frequency', 'They had no junction', 'They were made of copper'], 1, 'With E_J ≈ E_C the charge dispersion is a sizeable fraction of the qubit frequency, so charge noise caused rapid dephasing.'],
+    ['In the charge basis, what does cos φ do?', ['It is diagonal', 'It moves one Cooper pair across the junction: ½ Σ (|n⟩⟨n+1| + h.c.)', 'It measures the charge', 'It is zero'], 1, 'e^{iφ} shifts the charge by one Cooper pair, so cos φ couples neighbouring charge states with amplitude ½.'],
+    ['How does charge dispersion scale with E_J/E_C?', ['Linearly', 'Exponentially down, as e^{−√(8E_J/E_C)}', 'It grows', 'Like 1/(E_J/E_C)'], 1, 'Koch et al. showed ε_m ∝ e^{−√(8E_J/E_C)}: tunnelling between neighbouring minima of the cosine is suppressed exponentially.'],
+    ['How does the anharmonicity behave as E_J/E_C grows large?', ['It vanishes exponentially', 'It approaches −E_C, decreasing only slowly relative to the qubit frequency', 'It grows without bound', 'It becomes positive'], 1, 'The relative anharmonicity falls like (8E_J/E_C)^{−1/2}, algebraically, while the charge dispersion falls exponentially. That asymmetry is the transmon trade.'],
+    ['What design change turns a Cooper-pair box into a transmon?', ['Removing the junction', 'Adding a large shunt capacitance to lower E_C', 'Adding a resistor', 'Cooling to 1 K'], 1, 'A big shunt capacitor reduces E_C = e²/2C_Σ to a few hundred megahertz, pushing E_J/E_C to around 50.'],
+    ['Approximately, what is a transmon’s 0→1 frequency?', ['E_J', '√(8E_JE_C) − E_C', '4E_C', 'E_J/E_C'], 1, 'The plasma frequency √(8E_JE_C) minus a correction of about E_C from the quartic term.'],
+    ['Which transmon property most directly limits single-qubit gate speed?', ['Its charge dispersion', 'Its anharmonicity, since short pulses have broad spectra that also drive 1→2', 'Its temperature', 'The flux quantum'], 1, 'A pulse much shorter than about 1/|α| excites |2⟩. DRAG and similar shaping allow gates of about 20 ns despite |α| ≈ 250 MHz.'],
+    ['What is an Xmon?', ['A flux qubit', 'A transmon whose shunt capacitor is a cross shape, convenient for connecting to couplers and readout', 'A readout amplifier', 'A type of resonator'], 1, 'The Xmon (Barends et al., 2013) uses a cross-shaped capacitor whose arms couple to neighbouring qubits, a resonator and control lines.'],
+    ['What are typical transmon T₁ times today?', ['About 1 ns', 'About 1 µs', 'Hundreds of microseconds, and above a millisecond in the best devices', 'About a minute'], 2, 'Better materials, surface treatment and geometry have pushed T₁ from about 1 µs in 2007 to hundreds of microseconds routinely.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'fluxonium', n: 40.4, stage: SCQ, minutes: 15, title: 'Beyond the transmon: flux qubits and fluxonium',
+  lede: 'Add a large inductance in parallel with the junction and the potential becomes a parabola with cosine ripples. Thread half a flux quantum through the loop and you get a double well with a low-frequency, strongly anharmonic and very long-lived qubit.',
+  html: `
+<h2>A junction in a loop</h2>
+<p>Close a junction into a superconducting loop with an inductance ${m('L')}. External flux ${m('Φ<sub>ext</sub>')} through the loop enters the Hamiltonian as a phase offset ${m('φ<sub>ext</sub> = 2πΦ<sub>ext</sub>/Φ₀')}:</p>
+${EQ('H = 4E<sub>C</sub> n² − E<sub>J</sub> cos(φ − φ<sub>ext</sub>) + ½ E<sub>L</sub> φ²')}
+<p>This is an LC circuit ([[L:lccircuit]]) with a junction ([[L:josephson]]) added. The potential is a parabola with cosine ripples on it, and the flux slides the ripples sideways. At ${m('Φ<sub>ext</sub> = Φ₀/2')} the potential becomes a symmetric <strong>double well</strong>: the two lowest states are the symmetric and antisymmetric combinations of a fluxon sitting in the left or right well, which correspond to persistent current circulating clockwise or anticlockwise around the loop.</p>
+<h2>Flux qubits</h2>
+<p>The first circuits built on this idea (Mooij, Orlando and colleagues, 1999) were <strong>persistent-current flux qubits</strong>: a small loop interrupted by three junctions, with the double well formed by the junctions alone. They have large anharmonicity and strong coupling to magnetic fields, which makes them excellent for quantum annealers ([[L:annealing]]), where D-Wave uses related rf-SQUID qubits, but also sensitive to flux noise.</p>
+<h2>Fluxonium</h2>
+<p>Fluxonium (Manucharyan and colleagues, 2009) shunts a small junction with a <strong>superinductance</strong>: a chain of about a hundred larger junctions, or a strip of granular aluminium, whose inductance (hundreds of nanohenries) gives an impedance above the resistance quantum ${m('h/(2e)² ≈ 6.5')} kΩ. A large inductance means a small ${m('E<sub>L</sub>')}, typically below 1 GHz, alongside ${m('E<sub>J</sub>')} of a few gigahertz and ${m('E<sub>C</sub>')} near 1 GHz.</p>
+<ul>
+<li><strong>Low frequency.</strong> At half flux the qubit frequency is set by tunnelling through the barrier between the wells, often only 100 MHz to 1 GHz.</li>
+<li><strong>Huge anharmonicity.</strong> The next transition is several gigahertz higher, so leakage is not a concern and gates can be fast relative to the qubit frequency.</li>
+<li><strong>Long coherence.</strong> The two qubit states have little overlap, so their transition matrix elements are small and dielectric loss at low frequency is weak. ${m('T₁')} and ${m('T₂')} above a millisecond have been reported, along with single-qubit gate fidelities above 99.99%.</li>
+<li><strong>Trade-offs.</strong> A qubit at a few hundred megahertz has a non-negligible thermal population even at 10 mK, so active reset matters, and two-qubit gates usually go through higher levels or a coupler.</li>
+</ul>
+${LAB('flux')}
+<h2>Towards protected qubits</h2>
+<p>Pushing the same ideas further leads to circuits whose qubit states are protected by symmetry from both charge and flux noise, such as the <strong>0–π qubit</strong>, which needs two degrees of freedom and very precise parameters. They are experimentally young, but they show the breadth of the design space: the transmon is one point in it, chosen for simplicity.</p>
+`,
+  labs: {
+    flux: {
+      title: 'Fluxonium potential, levels and spectrum',
+      cap: 'Left: the potential −E_J cos(φ − φ_ext) + ½E_Lφ², the lowest four levels and the first three wavefunctions, computed on a fine phase grid. At Φ_ext = Φ₀/2 the lowest well splits into two equal halves and the ground and first excited states become even and odd combinations across them. Right: the 0→1 and 1→2 transition frequencies against external flux; the dot marks the current flux.',
+      build(body, id) {
+        let EJ = 5, EC = 1, EL = .8, fx = .5;
+        const cv = canvas('', 'height:300px'), cs = canvas('', 'height:300px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        let R = null, spec = null;
+        const span = 3 * Math.PI;
+        const compute = (full) => {
+          R = scPhaseGrid(EJ, EC, EL, TAU * fx, 4, true, 320, span);
+          if (full) { spec = []; for (let k = 0; k <= 40; k++) { const x = k / 40, E = scPhaseGrid(EJ, EC, EL, TAU * x, 3, false, 220, span).E; spec.push([x, E[1] - E[0], E[2] - E[1]]); } }
+        };
+        const p1 = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), Umin = Math.min(...R.U), top = R.E[3] + .8 * (R.E[3] - R.E[0]) + .5;
+          const A = axes(ctx, w, H, { x: [-span, span], y: [Umin - .3, top], xt: [-2, -1, 0, 1, 2].map(k => k * Math.PI), xf: v => { const k = Math.round(v / Math.PI); return k === 0 ? '0' : (k === 1 ? '' : k === -1 ? '−' : (k < 0 ? '−' : '') + Math.abs(k)) + 'π'; }, yt: [], xl: 'phase φ', yl: 'energy' });
+          const pts = []; for (let i = 0; i < R.ph.length; i++) if (R.U[i] < top) pts.push([A.X(R.ph[i]), A.Y(R.U[i])]); else if (pts.length) { polyline(ctx, pts.splice(0), T.ink, 2); }
+          polyline(ctx, pts, T.ink, 2);
+          const sc = .9 * (R.E[1] - R.E[0] + .3);
+          for (let n = 0; n < 4; n++) {
+            const E = R.E[n]; let a = 0, b = R.ph.length - 1; while (a < b && R.U[a] > E) a++; while (b > a && R.U[b] > E) b--;
+            polyline(ctx, [[A.X(R.ph[a]), A.Y(E)], [A.X(R.ph[b]), A.Y(E)]], rgba(T.ink, .45), 1.1);
+            if (n < 3) { const psi = R.psi[n], mx = Math.max(...psi.map(Math.abs)) || 1, col = [T.copper, T.cyan, T.good][n]; polyline(ctx, Array.from(psi, (v, i) => [A.X(R.ph[i]), A.Y(E + v / mx * sc * .5)]), col, 2); }
+            txt(ctx, `|${n}⟩`, A.R - 4, A.Y(E) - 8, { align: 'right', font: MATHFONT(13), color: T.ink });
+          }
+        });
+        const p2 = painter(cs, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), ym = Math.max(...spec.map(s => s[2])) * 1.08;
+          const A = axes(ctx, w, H, { x: [0, 1], y: [0, ym], xt: [0, .25, .5, .75, 1], yt: [0, 2, 4, 6, 8, 10].filter(v => v < ym), xl: 'Φ_ext / Φ₀', yl: 'frequency (GHz)' });
+          polyline(ctx, spec.map(s => [A.X(s[0]), A.Y(s[1])]), T.copper, 2.4); polyline(ctx, spec.map(s => [A.X(s[0]), A.Y(s[2])]), T.cyan, 2);
+          dot(ctx, A.X(fx), A.Y(R.E[1] - R.E[0]), 6, T.copper, T.surface);
+          txt(ctx, 'f₀₁', A.X(.08), A.Y(spec[3][1]) - 12, { font: '600 11px "JetBrains Mono",monospace', color: T.copper }); txt(ctx, 'f₁₂', A.X(.08), A.Y(spec[3][2]) + 12, { font: '600 11px "JetBrains Mono",monospace', color: T.cyan });
+        });
+        const upd = full => {
+          compute(full); const f01 = R.E[1] - R.E[0], f12 = R.E[2] - R.E[1], pth = Math.exp(-f01 / (KB_GHZ * .02));
+          ro.innerHTML = `<span class="k">f₀₁              </span>${f01 < 1 ? num(f01 * 1000, 0) + ' MHz' : num(f01, 3) + ' GHz'}<br><span class="k">f₁₂              </span>${num(f12, 3)} GHz<br><span class="k">anharmonicity f₁₂ − f₀₁ </span>${num(f12 - f01, 2)} GHz<br><span class="k">thermal |1⟩ population at 20 mK </span>${pct(pth / (1 + pth), 1)}`;
+          p1.inv(); p2.inv();
+        };
+        body.append(h('div', { class: 'split even' }, cv, cs), h('div', { class: 'split even' },
+          h('div', { class: 'stack' },
+            slider({ id: id('f'), label: 'External flux Φ_ext / Φ₀', min: 0, max: 1, step: .01, value: fx, fmt: v => num(v, 2), on: v => { fx = v; upd(false); } }),
+            slider({ id: id('j'), label: 'E_J/h', min: 1, max: 9, step: .1, value: EJ, fmt: v => num(v, 1) + ' GHz', on: v => { EJ = v; upd(true); } })),
+          h('div', { class: 'stack' },
+            slider({ id: id('l'), label: 'E_L/h', min: .2, max: 3, step: .05, value: EL, fmt: v => num(v, 2) + ' GHz', on: v => { EL = v; upd(true); } }),
+            slider({ id: id('c'), label: 'E_C/h', min: .5, max: 2, step: .05, value: EC, fmt: v => num(v, 2) + ' GHz', on: v => { EC = v; upd(true); } }), ro)));
+        upd(true);
+      }
+    }
+  },
+  take: ['A junction in a loop with inductance L has H = 4E_C n² − E_J cos(φ − φ_ext) + ½E_Lφ²: a parabola with cosine ripples that external flux slides sideways.',
+    'At half a flux quantum the potential is a symmetric double well; the qubit states are even and odd superpositions of persistent currents in opposite directions.',
+    'Fluxonium uses a superinductance (small E_L) to get a low qubit frequency, multi-gigahertz anharmonicity and millisecond coherence.',
+    'Its costs are thermal population at low frequency and more complex two-qubit gates; protected qubits such as the 0–π circuit push the same ideas further.'],
+  quiz: QZ([
+    ['How does external flux enter the Hamiltonian of a junction in a loop?', ['As a change in E_C', 'As a phase offset φ_ext = 2πΦ_ext/Φ₀ inside the cosine', 'It does not', 'As a new capacitor'], 1, 'Flux quantization around the loop ties the junction phase to the inductor phase and the applied flux, giving −E_J cos(φ − φ_ext).'],
+    ['What happens to the potential at Φ_ext = Φ₀/2?', ['It becomes a single parabola', 'It becomes a symmetric double well', 'It disappears', 'It becomes flat'], 1, 'Half a flux quantum makes the cosine’s minima straddle φ = 0 symmetrically, so the lowest region of the potential has two equal wells.'],
+    ['Physically, what are the two lowest states of a flux qubit at half flux?', ['Two charge states', 'Superpositions of persistent current flowing clockwise and anticlockwise around the loop', 'Two photons', 'Two spins'], 1, 'Each well corresponds to a fluxon on one side, which means a circulating current; tunnelling mixes them into even and odd states.'],
+    ['What is a superinductance?', ['A very small inductor', 'An inductance large enough that its impedance exceeds the resistance quantum h/(2e)² ≈ 6.5 kΩ', 'A normal metal coil', 'A capacitor'], 1, 'Fluxonium needs hundreds of nanohenries with little stray capacitance, built from junction arrays or granular aluminium.'],
+    ['Why is fluxonium’s frequency at half flux low?', ['Because E_C is huge', 'Because it is set by tunnelling between the two wells, which is exponentially suppressed by the barrier', 'Because it is cold', 'Because E_J = 0'], 1, 'The splitting between even and odd states is the tunnelling rate through the barrier between the wells, often 100 MHz to 1 GHz.'],
+    ['What advantage does fluxonium’s large anharmonicity give?', ['Faster readout', 'Leakage to |2⟩ is negligible, so gates are not limited by leakage', 'It removes the need for cooling', 'It makes it harmonic'], 1, 'With f₁₂ several gigahertz above f₀₁, pulses at f₀₁ are far detuned from the next transition.'],
+    ['Why can fluxonium have very long T₁?', ['It has no junction', 'The qubit states barely overlap, so transition matrix elements are small, and dielectric loss is weak at low frequency', 'It is made of copper', 'It is not coupled to anything'], 1, 'Small matrix elements of the charge operator between |0⟩ and |1⟩ and a low frequency reduce the decay rate from dielectric loss.'],
+    ['What is a drawback of a qubit at a few hundred megahertz?', ['It cannot be measured', 'Its thermal excited-state population at 10–20 mK is not negligible, so it needs active reset', 'It decays instantly', 'It is charge sensitive'], 1, 'At 300 MHz, hf/k_B ≈ 14 mK, comparable to the fridge temperature, so a few per cent thermal population is common without reset.'],
+    ['Which platform uses rf-SQUID flux qubits at large scale?', ['Trapped-ion computers', 'D-Wave quantum annealers', 'Photonic processors', 'NMR'], 1, 'D-Wave’s annealers are built from thousands of coupled rf-SQUID flux qubits.'],
+    ['What is the 0–π qubit?', ['A transmon variant with one junction', 'A circuit with two degrees of freedom whose qubit states are protected by symmetry from both charge and flux noise', 'A readout amplifier', 'A fluxonium at zero flux'], 1, 'The 0–π circuit encodes states localized at φ = 0 and φ = π with disjoint support, giving intrinsic protection, at the price of demanding parameters.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'scmaterials', n: 40.5, stage: SCQ, minutes: 16, title: 'Building the chip: materials, losses and frequency crowding',
+  lede: 'A transmon’s lifetime is set by the tiny fraction of its electric field that sits in lossy surfaces, and a processor’s yield by how precisely hundreds of junctions hit their target frequencies.',
+  html: `
+<h2>How a qubit chip is made</h2>
+<p>A superconducting processor starts as a wafer of high-resistivity silicon or sapphire. A superconducting film, aluminium, niobium or increasingly tantalum, is deposited and patterned into the capacitor pads, resonators and wiring. The junctions come last: electron-beam lithography opens a resist mask, aluminium is evaporated from one angle, the surface is oxidized in a controlled oxygen atmosphere, and a second layer is evaporated from another angle so the two overlap across the oxide (the <strong>Dolan bridge</strong> or <strong>Manhattan</strong> technique). Large processors add airbridges that tie ground planes together, through-silicon vias, and <strong>flip-chip</strong> bonding that puts qubits on one chip and wiring on another.</p>
+<h2>Where the energy goes</h2>
+<p>A qubit’s ${m('T₁')} is set by the sum of every loss channel:</p>
+${EQ('1/T₁ = ω Σ<sub>i</sub> p<sub>i</sub> tan δ<sub>i</sub> + Γ<sub>Purcell</sub> + Γ<sub>qp</sub> + …')}
+<p>The first term is <strong>dielectric loss</strong>. Each material ${m('i')} that the qubit’s electric field passes through stores a fraction ${m('p<sub>i</sub>')} of the energy, its <strong>participation ratio</strong>, and dissipates a fraction ${m('tan δ<sub>i</sub>')} per radian. The bulk substrate holds most of the energy but is very clean. The damage is done by nanometre-thin layers: the metal–air, metal–substrate and substrate–air interfaces, with native oxides and residues full of <strong>two-level systems</strong> (TLS), atomic-scale defects that absorb microwave photons. Their participation is only ${m('10⁻⁵')}–${m('10⁻⁴')}, but their loss tangent is about ${m('10⁻³')}.</p>
+<p>Engineers attack both factors. Larger gaps between pads spread the field and lower surface participation. Better materials lower the loss tangent: switching to <strong>tantalum</strong>, whose native oxide is much less lossy than aluminium’s or niobium’s, gave transmons with ${m('T₁')} of 300–500 µs (Place et al., 2021; Wang et al., 2022). Other channels matter too: <strong>Purcell</strong> decay through the readout resonator, non-equilibrium <strong>quasiparticles</strong> (broken Cooper pairs) tunnelling through junctions, and even cosmic rays and natural radioactivity, which create bursts of quasiparticles that hit many qubits at once.</p>
+${LAB('loss')}
+<h2>Hitting the right frequency</h2>
+<p>Junction critical currents vary from one junction to the next by a few per cent, because the oxide thickness and area fluctuate. For a transmon, ${m('f ∝ √E<sub>J</sub>')}, so a 2% spread in ${m('I<sub>c</sub>')} becomes about a 1% spread in frequency, roughly 50 MHz. That matters most for <strong>fixed-frequency</strong> architectures driven by cross-resonance ([[L:crossres]]), where neighbouring qubits must avoid specific frequency relations, called <strong>collisions</strong>: equal frequencies, one qubit’s ${m('f₀₁')} matching a neighbour’s ${m('f₁₂')}, and two-photon resonances. With hundreds of qubits, the chance that none collide falls quickly with the spread. IBM’s answer combines a <strong>heavy-hex</strong> lattice, where each qubit has at most three neighbours, with laser annealing of junctions after fabrication, which trims their resistance and cuts the spread to about 15 MHz (Hertzberg et al., 2021). Tunable architectures avoid the problem with flux, at the cost of flux noise and wiring.</p>
+${LAB('collide')}
+`,
+  labs: {
+    loss: {
+      title: 'A T₁ loss budget',
+      cap: 'Each bar is the T₁ the qubit would have if that were the only loss channel (longer is better). Dielectric channels are ω·p·tan δ; Purcell and quasiparticle limits are set directly. The total T₁ combines the rates, so the shortest bar dominates. The participation ratios and loss tangents are representative values, not a specific device.',
+      build(body, id) {
+        const GEO = { compact: { SA: 4e-4, MS: 2e-4, MA: 2e-5, sub: .9 }, std: { SA: 1e-4, MS: 5e-5, MA: 5e-6, sub: .9 }, large: { SA: 3e-5, MS: 1.5e-5, MA: 1.5e-6, sub: .9 } };
+        const MAT = { al: { SA: 1e-3, MS: 1e-3, MA: 3e-3, sub: 5e-8, name: 'Al on silicon' }, ta: { SA: 5e-4, MS: 5e-4, MA: 5e-4, sub: 1e-8, name: 'Ta on sapphire' } };
+        let geo = 'std', mat = 'al', f = 5, Tp = 2, Tq = 1;
+        const cv = canvas('', 'height:260px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const chans = () => { const g = GEO[geo], mt = MAT[mat], w = TAU * f * 1e9; return [
+          ['substrate', 1 / (w * g.sub * mt.sub)], ['substrate–air', 1 / (w * g.SA * mt.SA)], ['metal–substrate', 1 / (w * g.MS * mt.MS)], ['metal–air', 1 / (w * g.MA * mt.MA)], ['Purcell', Tp * 1e-3], ['quasiparticles', Tq * 1e-3]]; };
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), cs = chans(), tot = 1 / cs.reduce((s, c) => s + 1 / c[1], 0);
+          const rows = cs.concat([['total T₁', tot]]), L0 = 128, R0 = w - 70, X = v => L0 + (Math.log10(v) + 5) / 3.3 * (R0 - L0), rh = (H - 30) / rows.length;
+          ctx.font = '500 10.5px "JetBrains Mono",monospace';
+          [1e-5, 1e-4, 1e-3, 1e-2].forEach(v => { const x = X(v); ctx.strokeStyle = T.line; ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x, H - 26); ctx.stroke(); txt(ctx, fmtSI(v, 's', 0), x, H - 14, { font: '500 10px "JetBrains Mono",monospace' }); });
+          rows.forEach(([nm, t], i) => { const y = 6 + i * rh, last = i === rows.length - 1, xv = clamp(X(t), L0, R0); ctx.fillStyle = last ? T.copper : rgba(T.cyan, .75); ctx.fillRect(L0, y + 3, Math.max(2, xv - L0), rh - 8);
+            txt(ctx, nm, L0 - 8, y + rh / 2, { align: 'right', font: (last ? '700' : '500') + ' 11px "JetBrains Mono",monospace', color: last ? T.ink : T.muted }); txt(ctx, fmtSI(t, 's', t < 1e-3 ? 0 : 1), xv + 6, y + rh / 2, { align: 'left', font: '600 10.5px "JetBrains Mono",monospace', color: T.ink }); });
+        });
+        const upd = () => { const cs = chans(), tot = 1 / cs.reduce((s, c) => s + 1 / c[1], 0), worst = cs.reduce((a, b) => a[1] < b[1] ? a : b); ro.innerHTML = `<span class="k">total T₁ </span>${fmtSI(tot, 's', 0)} &nbsp; <span class="k">quality factor Q = ωT₁ </span>${sci(TAU * f * 1e9 * tot, 2)}<br><span class="k">largest loss </span>${worst[0]}`; p.inv(); };
+        body.append(cv, h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, field('Materials', seg([{ v: 'al', label: 'Al on silicon' }, { v: 'ta', label: 'Ta on sapphire' }], mat, v => { mat = v; upd(); }, 'Materials')),
+            field('Pad geometry', seg([{ v: 'compact', label: 'Compact' }, { v: 'std', label: 'Standard' }, { v: 'large', label: 'Large gaps' }], geo, v => { geo = v; upd(); }, 'Geometry')),
+            slider({ id: id('f'), label: 'Qubit frequency', min: 3, max: 7, step: .1, value: f, fmt: v => num(v, 1) + ' GHz', on: v => { f = v; upd(); } })),
+          h('div', { class: 'stack' }, slider({ id: id('p'), label: 'Purcell limit', min: .1, max: 10, step: .1, value: Tp, fmt: v => num(v, 1) + ' ms', on: v => { Tp = v; upd(); } }),
+            slider({ id: id('q'), label: 'Quasiparticle limit', min: .1, max: 10, step: .1, value: Tq, fmt: v => num(v, 1) + ' ms', on: v => { Tq = v; upd(); } }), ro)));
+        upd();
+      }
+    },
+    collide: {
+      title: 'Frequency collisions and yield',
+      cap: 'A square grid of fixed-frequency transmons is designed with three frequencies repeating so that neighbours always differ. Fabrication adds Gaussian scatter. A chip counts as good only if every neighbouring pair avoids the collisions |Δ| < 17 MHz, |Δ| within 4 MHz of |α|/2 and |Δ| within 25 MHz of |α|, and stays close enough (|Δ| < |α|) for a fast cross-resonance gate. The curves show the fraction of good chips (Monte Carlo) against the scatter for three chip sizes. Real criteria include more conditions, so real yields are lower.',
+      build(body, id) {
+        let sigma = 30, step = 60, Lsel = 5;
+        const alpha = .33, cv = canvas('', 'height:260px'), map = canvas('sq', 'max-width:240px;margin:0 auto'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const collide = (a, b) => { const d = Math.abs(a - b); return d < .017 || Math.abs(d - alpha / 2) < .004 || Math.abs(d - alpha) < .025 || d > alpha; };
+        const design = (i, j) => 5 + step / 1000 * ((i + 2 * j) % 3);
+        const sample = (L, s) => { const f = []; for (let j = 0; j < L; j++) for (let i = 0; i < L; i++) f.push(design(i, j) + s / 1000 * randn()); return f; };
+        const bad = (L, f) => { const out = []; for (let j = 0; j < L; j++) for (let i = 0; i < L; i++) { const k = j * L + i; if (i < L - 1 && collide(f[k], f[k + 1])) out.push([k, k + 1]); if (j < L - 1 && collide(f[k], f[k + L])) out.push([k, k + L]); } return out; };
+        const yieldOf = (L, s, N = 260) => { let ok = 0; for (let t = 0; t < N; t++) if (!bad(L, sample(L, s)).length) ok++; return ok / N; };
+        let curves = null, demo = null;
+        const recompute = () => { curves = [3, 5, 8].map(L => { const pts = []; for (let s = 0; s <= 80; s += 5) pts.push([s, yieldOf(L, s)]); return [L, pts]; }); newDemo(); };
+        const newDemo = () => { const f = sample(Lsel, sigma); demo = { f, bad: bad(Lsel, f) }; };
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), A = axes(ctx, w, H, { x: [0, 80], y: [0, 1], xt: [0, 20, 40, 60, 80], yt: [0, .25, .5, .75, 1], yf: v => pct(v, 0), xl: 'frequency scatter σ (MHz)', yl: 'chips with no collisions' });
+          const cols = { 3: T.cyan, 5: T.copper, 8: T.bad };
+          curves.forEach(([L, pts]) => { polyline(ctx, pts.map(([s, y]) => [A.X(s), A.Y(y)]), cols[L], 2.3); txt(ctx, `${L * L} qubits`, A.X(pts[3][0]) + 4, A.Y(pts[3][1]) - 10, { align: 'left', font: '600 10.5px "JetBrains Mono",monospace', color: cols[L] }); });
+          polyline(ctx, [[A.X(sigma), A.T], [A.X(sigma), A.B]], T.ink, 1.3, [4, 3]);
+        });
+        const pm = painter(map, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), L = Lsel, g = Math.min(w, H) / (L + .5), o = (Math.min(w, H) - g * (L - 1)) / 2, P = k => [o + (k % L) * g, o + Math.floor(k / L) * g];
+          const badSet = new Set(demo.bad.map(([a, b]) => a + ',' + b));
+          for (let k = 0; k < L * L; k++) { const [x, y] = P(k); [[k + 1, k % L < L - 1], [k + L, k + L < L * L]].forEach(([q, ok]) => { if (!ok) return; const [x2, y2] = P(q), b = badSet.has(k + ',' + q); ctx.strokeStyle = b ? T.bad : T.line; ctx.lineWidth = b ? 4 : 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke(); }); }
+          const cl = [T.cyan, T.copper, T.good]; for (let k = 0; k < L * L; k++) { const [x, y] = P(k), c = (k % L + 2 * Math.floor(k / L)) % 3; dot(ctx, x, y, Math.min(11, g * .26), cl[c], T.surface); }
+        });
+        const upd = full => { if (full) recompute(); else newDemo(); const y = yieldOf(Lsel, sigma, 500); ro.innerHTML = `<span class="k">this chip </span>${demo.bad.length ? `<b style="color:var(--bad)">${demo.bad.length} collision${demo.bad.length > 1 ? 's' : ''}</b>` : '<b style="color:var(--good)">no collisions</b>'}<br><span class="k">yield for ${Lsel * Lsel} qubits at σ = ${sigma} MHz </span>${pct(y, 0)}`; p.inv(); pm.inv(); };
+        body.append(h('div', { class: 'split wide-l' }, cv, h('div', { class: 'stack' }, map, legendRow([['collision', 'var(--bad)']]))), h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, slider({ id: id('s'), label: 'Frequency scatter σ', min: 0, max: 80, step: 1, value: sigma, fmt: v => v + ' MHz', on: v => { sigma = v; upd(false); } }),
+            slider({ id: id('d'), label: 'Design spacing between frequency groups', min: 30, max: 120, step: 5, value: step, fmt: v => v + ' MHz', on: v => { step = v; upd(true); } })),
+          h('div', { class: 'stack' }, slider({ id: id('L'), label: 'Chip size (side)', min: 3, max: 8, step: 1, value: Lsel, fmt: v => `${v} × ${v}`, on: v => { Lsel = v; upd(false); } }), h('div', { class: 'btns' }, btn('Fabricate another chip', () => upd(false), 'sm')), ro)));
+        upd(true);
+      }
+    }
+  },
+  take: ['Junctions are made by double-angle evaporation of aluminium with a controlled oxidation step; large processors add airbridges, vias and flip-chip bonding.',
+    'Dielectric loss is ω Σ p_i tan δ_i: thin interface layers hold a tiny fraction of the energy but have large loss tangents from two-level-system defects.',
+    'Wider gaps lower surface participation and better materials such as tantalum lower loss tangents; Purcell decay, quasiparticles and radiation add further channels.',
+    'Junction scatter of a few per cent gives tens of megahertz of frequency spread; fixed-frequency lattices must avoid collisions, helped by sparse heavy-hex connectivity and laser annealing.'],
+  quiz: QZ([
+    ['How are the Josephson junctions in most superconducting qubits fabricated?', ['By ion implantation', 'By double-angle evaporation of aluminium with an oxidation step in between', 'By 3D printing', 'By growing a crystal'], 1, 'A suspended resist bridge (Dolan) or crossed trenches (Manhattan) let two evaporations from different angles overlap, with a thin oxide between them.'],
+    ['What is a participation ratio p_i?', ['The fraction of qubits that work', 'The fraction of the qubit’s electric-field energy stored in material i', 'The junction transparency', 'The readout fidelity'], 1, 'Dielectric loss from a material is weighted by how much of the mode’s energy lives in it.'],
+    ['Why do nanometre-thin surface layers dominate loss?', ['They hold most of the energy', 'Despite tiny participation (10⁻⁵–10⁻⁴), their loss tangents are large (about 10⁻³) because of two-level-system defects', 'They are superconducting', 'They are too cold'], 1, 'The product p·tan δ for surfaces exceeds that of the much cleaner bulk substrate.'],
+    ['What are two-level systems (TLS) in this context?', ['The qubits themselves', 'Atomic-scale defects in amorphous oxides and interfaces that absorb microwave energy', 'Readout resonators', 'Pairs of qubits'], 1, 'Tunnelling atoms or electrons in disordered materials form two-level defects that couple to the qubit’s electric field and absorb energy.'],
+    ['How does widening the gap between capacitor pads affect T₁?', ['It reduces T₁', 'It spreads the field out, lowering surface participation and usually raising T₁', 'It has no effect', 'It changes the qubit into a fluxonium'], 1, 'Surface participation scales roughly inversely with the gap, at the cost of a larger qubit footprint.'],
+    ['Why did tantalum films improve transmon coherence?', ['Tantalum has no oxide', 'Its native oxide is much less lossy than those of aluminium or niobium', 'It is a better conductor at room temperature', 'It raises the qubit frequency'], 1, 'Tantalum-based transmons showed T₁ of 300–500 µs, attributed to a lower-loss surface oxide.'],
+    ['What are quasiparticles, and why do they matter?', ['Photons in the resonator', 'Broken Cooper pairs that can tunnel through a junction and cause the qubit to decay', 'Magnetic vortices', 'Phonons in the substrate only'], 1, 'Non-equilibrium quasiparticles, generated by stray radiation or high-energy events, cause T₁ decay and correlated errors.'],
+    ['Why do cosmic rays and natural radioactivity concern error correction?', ['They heat the fridge', 'They deposit energy that creates quasiparticles across the chip, causing correlated errors on many qubits at once', 'They change the flux quantum', 'They only affect readout'], 1, 'Correlated bursts violate the independent-error assumption of codes; mitigations include phonon traps, gap engineering and shielding.'],
+    ['Why does junction scatter matter most for fixed-frequency architectures?', ['Because they cannot be read out', 'Because their frequencies cannot be tuned after fabrication, so neighbours that land in collision conditions stay broken', 'Because they use more flux lines', 'Because they have higher anharmonicity'], 1, 'Cross-resonance gates require specific detunings between neighbours. Without tunability, a collision can only be fixed by trimming the junction.'],
+    ['How does IBM reduce frequency collisions?', ['By using more neighbours per qubit', 'With a heavy-hex lattice (at most three neighbours) and laser annealing to trim junctions after fabrication', 'By cooling below 1 mK', 'By using fluxonium only'], 1, 'Fewer neighbours means fewer collision conditions, and laser annealing cuts the frequency scatter to about 15 MHz.']
+  ])
+});
+
+window.GLOSSARY_EXTRA.push(
+  ['LC oscillator', 'An inductor and capacitor in a loop; quantized, a harmonic oscillator with flux as position and charge as momentum.', 'lccircuit'],
+  ['Flux quantum', 'Φ₀ = h/2e ≈ 2.07 × 10⁻¹⁵ Wb, the unit of magnetic flux in superconducting loops.', 'lccircuit'],
+  ['Charging energy', 'E_C = e²/2C, the electrostatic energy scale of a circuit; a Cooper pair costs 4E_C.', 'lccircuit'],
+  ['Josephson junction', 'Two superconductors separated by a thin barrier through which Cooper pairs tunnel; a lossless nonlinear inductor.', 'josephson'],
+  ['Josephson energy', 'E_J = Φ₀I_c/2π, the energy scale of the junction potential −E_J cos φ.', 'josephson'],
+  ['SQUID', 'Two junctions in a loop; the flux through the loop tunes the effective Josephson energy.', 'josephson'],
+  ['Sweet spot', 'An operating point where a qubit’s frequency is first-order insensitive to a noise source such as flux.', 'josephson'],
+  ['Cooper-pair box', 'A small superconducting island coupled through a junction, with E_J ≈ E_C; the first coherent superconducting qubit, very charge sensitive.', 'transmon'],
+  ['Transmon', 'A Josephson junction shunted by a large capacitor (E_J/E_C ≈ 50), making it insensitive to charge noise with anharmonicity near −E_C.', 'transmon'],
+  ['Charge dispersion', 'How much a superconducting qubit’s energy levels move with offset charge; suppressed exponentially in √(8E_J/E_C).', 'transmon'],
+  ['Fluxonium', 'A small junction shunted by a superinductance; at half flux, a low-frequency, highly anharmonic qubit with long coherence.', 'fluxonium'],
+  ['Superinductance', 'An inductance whose impedance exceeds h/(2e)² ≈ 6.5 kΩ, built from junction arrays or granular aluminium.', 'fluxonium'],
+  ['Participation ratio', 'The fraction of a mode’s electric-field energy stored in a given material or interface.', 'scmaterials'],
+  ['Two-level system (TLS)', 'An atomic-scale defect in an amorphous material that absorbs microwave energy and limits qubit coherence.', 'scmaterials'],
+  ['Frequency collision', 'A forbidden frequency relation between neighbouring fixed-frequency qubits that spoils gates or causes crosstalk.', 'scmaterials']
+);
+})();
+
+/* =====================================================================
+   Track · Circuit quantum electrodynamics
+   Jaynes–Cummings physics, the dispersive regime, coupling qubits,
+   cross-resonance gates and bosonic modes in 3D cavities
+   ===================================================================== */
+(() => {
+const CQED = 13;
+const lf = (n) => { let s = 0; for (let k = 2; k <= n; k++) s += Math.log(k); return s; };
+const poisson = (nb, n) => nb <= 0 ? (n === 0 ? 1 : 0) : Math.exp(-nb + n * Math.log(nb) - lf(n));
+const thermalP = (nb, n) => Math.pow(nb, n) / Math.pow(1 + nb, n + 1);
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'jaynes', n: 41.1, stage: CQED, minutes: 15, title: 'An atom and a photon on a chip: the Jaynes–Cummings model',
+  lede: 'Put a qubit inside a microwave resonator and it behaves like an atom in a mirrored cavity, except that the coupling is enormous. Single photons and the qubit trade energy back and forth hundreds of times before either is lost.',
+  html: `
+<h2>Cavity QED, moved onto a chip</h2>
+<p>In <strong>cavity quantum electrodynamics</strong> an atom sits between two mirrors and exchanges energy with a single mode of light. Serge Haroche (with Rydberg atoms in microwave cavities) and David Wineland (with trapped ions) shared the 2012 Nobel Prize for experiments of this kind. In 2004 Blais and colleagues proposed doing the same with a superconducting qubit and an on-chip resonator, and Wallraff and colleagues demonstrated it the same year. The field is called <strong>circuit QED</strong>, and it is how every superconducting qubit is controlled, coupled and measured.</p>
+<p>The resonator is usually a stretch of coplanar waveguide, a centre conductor between two ground planes, a few millimetres long, resonating at 4–8 GHz ([[L:lccircuit]]). The qubit is a transmon ([[L:transmon]]) placed at a voltage antinode. Two things make the coupling strong: the transmon is a huge “atom”, with a dipole moment thousands of times larger than a real atom’s, and the one-dimensional resonator squeezes the field into a tiny volume.</p>
+<h2>The Jaynes–Cummings Hamiltonian</h2>
+<p>Treat the qubit as a two-level atom with frequency ${m('ω<sub>q</sub>')} and the resonator as a harmonic oscillator with frequency ${m('ω<sub>r</sub>')}. Coupled by an exchange term of strength ${m('g')}, they obey</p>
+${EQ('H/ħ = ω<sub>r</sub> a†a + ω<sub>q</sub> σ<sub>+</sub>σ<sub>−</sub> + g (a†σ<sub>−</sub> + a σ<sub>+</sub>)')}
+<p>The coupling either moves an excitation from the qubit into the resonator (${m('a†σ<sub>−</sub>')}) or back (${m('aσ<sub>+</sub>')}). It conserves the total number of excitations, so the Hamiltonian splits into two-by-two blocks spanned by ${m('|e, n−1⟩')} and ${m('|g, n⟩')}. Within each block the coupling is ${m('g√n')}, and with detuning ${m('Δ = ω<sub>q</sub> − ω<sub>r</sub>')} the two energies are</p>
+${EQ('E<sub>n,±</sub> = nω<sub>r</sub> + Δ/2 ± √(Δ²/4 + n g²)')}
+<h2>Strong coupling</h2>
+<p>At resonance, ${m('Δ = 0')}, the states ${m('|e,0⟩')} and ${m('|g,1⟩')} hybridize into two dressed states split by ${m('2g')}, the <strong>vacuum Rabi splitting</strong>. In time, an excitation placed in the qubit oscillates into the resonator and back at frequency ${m('2g')}. This is only visible if ${m('g')} beats both the resonator’s photon loss rate ${m('κ')} and the qubit’s decay rate ${m('γ')}: the <strong>strong-coupling regime</strong>. Circuit QED reaches ${m('g/2π')} of 50–300 MHz with ${m('κ/2π')} below a megahertz, ratios of hundreds that atomic cavity QED struggles to reach.</p>
+<p>The ${m('√n')} in the splitting is the signature of a quantized field. A classical field would make the splitting grow smoothly with amplitude; with photons it climbs the <strong>Jaynes–Cummings ladder</strong> in steps of ${m('√1, √2, √3, …')}, which Fink and colleagues observed directly in 2008. Start the qubit excited with a coherent field in the resonator and the different photon numbers oscillate at incommensurate rates: the oscillations <strong>collapse</strong> and, because the photon numbers are discrete, later <strong>revive</strong>.</p>
+${LAB('jc')}
+${NOTE('When the model breaks', `<p>The Jaynes–Cummings form drops terms like ${m('a†σ<sub>+</sub>')} (the rotating-wave approximation), valid while ${m('g ≪ ω')}. Circuits can reach the <strong>ultrastrong</strong> regime, ${m('g/ω > 0.1')}, where those terms matter. A transmon also has more than two levels, which changes the dispersive physics in [[L:dispersive]].</p>`)}
+`,
+  labs: {
+    jc: {
+      title: 'Vacuum Rabi splitting and the Jaynes–Cummings ladder',
+      cap: 'Left: the two dressed energies of the n-excitation block, measured from nω_r, against the qubit–resonator detuning; dashed lines are the uncoupled states. The gap at resonance is 2g√n. Right: the probability that the qubit is excited over time, starting from |e⟩ with either an exact photon number or a coherent field. With a coherent field the oscillations collapse and then revive. Losses (κ, γ) are left out.',
+      build(body, id) {
+        let g = 50, Dl = 0, nb = 0, mode = 'fock', man = 1;
+        const cs = canvas('', 'height:260px'), ct = canvas('', 'height:260px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const Pe = t => {
+          if (mode === 'fock') { const n = nb, Om = Math.sqrt(Dl * Dl / 4 + (n + 1) * g * g); return 1 - (n + 1) * g * g / (Om * Om) * Math.sin(TAU * Om * t) ** 2; }
+          let s = 0, nmax = Math.ceil(nb + 7 * Math.sqrt(nb) + 8);
+          for (let n = 0; n <= nmax; n++) { const p = poisson(nb, n); if (p < 1e-9) continue; const Om = Math.sqrt(Dl * Dl / 4 + (n + 1) * g * g); s += p * (1 - (n + 1) * g * g / (Om * Om) * Math.sin(TAU * Om * t) ** 2); }
+          return s;
+        };
+        const tmax = () => mode === 'coh' && nb >= 1 ? 1.35 * Math.sqrt(nb) / g : 3 / (2 * Math.sqrt(Dl * Dl / 4 + (nb + 1) * g * g));
+        const p1 = painter(cs, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), X = 400, Ym = Math.max(260, g * Math.sqrt(man) * 1.6 + 200);
+          const A = axes(ctx, w, H, { x: [-X, X], y: [-Ym, Ym], xt: [-400, -200, 0, 200, 400], yt: [-200, 0, 200].filter(v => Math.abs(v) < Ym), xl: 'detuning Δ/2π (MHz)', yl: 'E − nω_r (MHz)' });
+          polyline(ctx, [[A.X(-X), A.Y(0)], [A.X(X), A.Y(0)]], T.muted, 1.2, [5, 4]); polyline(ctx, [[A.X(-X), A.Y(-X)], [A.X(X), A.Y(X)]], T.muted, 1.2, [5, 4]);
+          for (const sgn of [1, -1]) { const pts = []; for (let k = 0; k <= 200; k++) { const d = -X + 2 * X * k / 200; pts.push([A.X(d), A.Y(d / 2 + sgn * Math.sqrt(d * d / 4 + man * g * g))]); } polyline(ctx, pts, sgn > 0 ? T.copper : T.cyan, 2.4); }
+          const gap = 2 * Math.sqrt(Dl * Dl / 4 + man * g * g); arrow(ctx, A.X(Dl), A.Y(Dl / 2), A.X(Dl), A.Y(Dl / 2 + gap / 2) + 2, T.ink, 1.4, 6); arrow(ctx, A.X(Dl), A.Y(Dl / 2), A.X(Dl), A.Y(Dl / 2 - gap / 2) - 2, T.ink, 1.4, 6);
+          txt(ctx, `|g,${man}⟩`, A.X(-X) + 30, A.Y(0) - 10, { font: MATHFONT(13), color: T.ink }); txt(ctx, `|e,${man - 1}⟩`, A.X(-X) + 40, A.Y(-X + 40) - 14, { font: MATHFONT(13), color: T.ink });
+        });
+        const p2 = painter(ct, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), tm = tmax(), A = axes(ctx, w, H, { x: [0, tm * 1000], y: [0, 1], xt: [0, tm * 250, tm * 500, tm * 750, tm * 1000].map(v => +v.toFixed(0)), yt: [0, .5, 1], yf: v => num(v, 1), xl: 'time (ns)', yl: 'P(qubit excited)' });
+          const pts = []; for (let k = 0; k <= 700; k++) { const t = tm * k / 700; pts.push([A.X(t * 1000), A.Y(Pe(t))]); } polyline(ctx, pts, T.copper, 1.8);
+          if (mode === 'coh' && nb >= 1) { const tr = Math.sqrt(nb) / g; polyline(ctx, [[A.X(tr * 1000), A.T], [A.X(tr * 1000), A.B]], T.good, 1.2, [4, 3]); txt(ctx, 'revival', A.X(tr * 1000), A.T + 8, { font: '600 10.5px "JetBrains Mono",monospace', color: T.good }); }
+        });
+        const upd = () => {
+          const split = 2 * Math.sqrt(Dl * Dl / 4 + man * g * g);
+          ro.innerHTML = `<span class="k">splitting in block n = ${man} </span>${num(split, 1)} MHz &nbsp;(2g√n = ${num(2 * g * Math.sqrt(man), 1)} at resonance)<br><span class="k">vacuum Rabi period 1/(2g) </span>${num(1000 / (2 * g), 1)} ns` + (mode === 'coh' && nb >= 1 ? `<br><span class="k">revival time ≈ 2π√n̄ / g    </span>${num(1000 * Math.sqrt(nb) / g, 0)} ns` : '');
+          p1.inv(); p2.inv();
+        };
+        const nbS = slider({ id: id('n'), label: 'Photons n (or mean n̄)', min: 0, max: 12, step: 1, value: nb, fmt: v => String(v), on: v => { nb = v; upd(); } });
+        body.append(h('div', { class: 'split even' }, cs, ct), h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, slider({ id: id('g'), label: 'Coupling g/2π', min: 10, max: 200, step: 1, value: g, fmt: v => v + ' MHz', on: v => { g = v; upd(); } }),
+            slider({ id: id('d'), label: 'Detuning Δ/2π', min: -400, max: 400, step: 5, value: Dl, fmt: v => v + ' MHz', on: v => { Dl = v; upd(); } }),
+            field('Block shown on the left', seg([1, 2, 3, 4].map(v => ({ v, label: 'n = ' + v })), man, v => { man = v; upd(); }, 'Excitation block'))),
+          h('div', { class: 'stack' }, field('Field in the resonator', seg([{ v: 'fock', label: 'Exact photon number' }, { v: 'coh', label: 'Coherent field' }], mode, v => { mode = v; if (v === 'coh' && nb < 4) { nb = 6; nbS.set(6); } upd(); }, 'Field')), nbS, ro)));
+        upd();
+      }
+    }
+  },
+  take: ['Circuit QED puts a superconducting qubit in an on-chip microwave resonator; the transmon’s large dipole and the resonator’s small mode volume make the coupling g very strong.',
+    'The Jaynes–Cummings Hamiltonian conserves excitations, splitting into blocks {|e,n−1⟩, |g,n⟩} coupled by g√n.',
+    'At resonance the dressed states are split by 2g√n; the vacuum Rabi splitting 2g is resolved when g exceeds the loss rates κ and γ (strong coupling).',
+    'The √n ladder and the collapse and revival of Rabi oscillations with a coherent field show that the resonator field is quantized.'],
+  quiz: QZ([
+    ['What plays the role of the atom and the cavity in circuit QED?', ['A laser and a mirror', 'A superconducting qubit and an on-chip microwave resonator', 'An ion and a trap', 'Two resonators'], 1, 'The transmon is an artificial atom and a coplanar-waveguide resonator is the cavity.'],
+    ['Why is the coupling in circuit QED so much stronger than in atomic cavity QED?', ['The fridge is colder', 'The transmon has an enormous dipole moment and the 1D resonator confines the field to a tiny volume', 'Microwaves are faster than light', 'Superconductors amplify the field'], 1, 'g scales with the dipole moment times the vacuum field; both are large on a chip.'],
+    ['What does the term g(a†σ₋ + aσ₊) do?', ['Measures the qubit', 'Exchanges an excitation between qubit and resonator while conserving the total number', 'Creates two photons', 'Heats the resonator'], 1, 'a†σ₋ moves an excitation from qubit to resonator, aσ₊ moves it back.'],
+    ['Within the block {|e,n−1⟩, |g,n⟩}, what is the coupling?', ['g', 'g√n', 'gn', 'g/n'], 1, 'The resonator matrix element ⟨n|a†|n−1⟩ = √n multiplies g.'],
+    ['What is the vacuum Rabi splitting?', ['The splitting of |g,0⟩', 'The 2g splitting between dressed states of |e,0⟩ and |g,1⟩ at resonance', 'The qubit anharmonicity', 'The readout shift'], 1, 'With one excitation and Δ = 0, the dressed states (|e,0⟩ ± |g,1⟩)/√2 are separated by 2g.'],
+    ['What defines the strong-coupling regime?', ['g > ω', 'g larger than the photon loss rate κ and the qubit decay rate γ', 'g = 0', 'κ > g'], 1, 'Only then can an excitation swap between qubit and resonator several times before it is lost.'],
+    ['Why is the √n spacing of the Jaynes–Cummings ladder important?', ['It proves the qubit has two levels', 'It is a signature of a quantized field: splittings grow in discrete √n steps', 'It sets the readout frequency', 'It is a fabrication error'], 1, 'A classical field would give smoothly varying splittings; observing √1, √2, √3 shows photons.'],
+    ['Why do Rabi oscillations collapse when the resonator holds a coherent field?', ['The qubit decays', 'Each photon number oscillates at its own frequency g√(n+1), and the mixture dephases', 'The field disappears', 'The detuning grows'], 1, 'A coherent state is a superposition of photon numbers with Poisson weights, each with a different Rabi frequency.'],
+    ['Why do the oscillations later revive?', ['Because energy is added', 'Because photon numbers are discrete, the phases of neighbouring terms realign after a time of order 2π√n̄/g', 'Because the qubit is reset', 'They never revive'], 1, 'Discreteness means the terms rephase. A classical continuous field would collapse forever.'],
+    ['When does the rotating-wave approximation behind the Jaynes–Cummings model fail?', ['When g ≪ ω', 'In the ultrastrong regime, g/ω above about 0.1', 'At zero temperature', 'When Δ = 0'], 1, 'Counter-rotating terms like a†σ₊ become important when the coupling is a sizeable fraction of the bare frequencies.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'dispersive', n: 41.2, stage: CQED, minutes: 16, title: 'The dispersive regime: χ, Stark shifts and photon counting',
+  lede: 'Detune the qubit far from the resonator and they stop exchanging energy, but each still shifts the other’s frequency. That one effect underlies readout, photon counting, and some of the most important noise in a processor.',
+  html: `
+<h2>Far from resonance</h2>
+<p>When the detuning is large, ${m('|Δ| ≫ g')}, an excitation cannot hop between qubit and resonator without violating energy conservation. It still borrows energy briefly, and the result, worked out by a unitary transformation that removes the exchange term to first order, is the <strong>dispersive Hamiltonian</strong>:</p>
+${EQ('H/ħ ≈ (ω<sub>r</sub> + χσ<sub>z</sub>) a†a + ½ (ω<sub>q</sub> + χ) σ<sub>z</sub>,&nbsp;&nbsp; χ = g²/Δ')}
+<p>Read it two ways. Grouped with ${m('a†a')}: the resonator frequency is ${m('ω<sub>r</sub> ± χ')} depending on the qubit state. That is <strong>dispersive readout</strong> ([[L:readout]]). Grouped with ${m('σ<sub>z</sub>')}: the qubit frequency shifts by ${m('2χ')} for every photon in the resonator, the <strong>ac Stark shift</strong>, and by ${m('χ')} even in the vacuum, the <strong>Lamb shift</strong>.</p>
+<h2>A transmon is not a two-level atom</h2>
+<p>The transmon’s third level matters, because its ${m('|1⟩ → |2⟩')} transition is only ${m('|α|')} away from ${m('|0⟩ → |1⟩')}. Including it (Koch et al., 2007) gives</p>
+${EQ('χ = g² α / (Δ (Δ + α))')}
+<p>For large detuning this is much smaller than ${m('g²/Δ')}, by about ${m('|α|/Δ')}. Between the two transitions, when the resonator frequency lies between ${m('f₁₂')} and ${m('f₀₁')}, the <strong>straddling regime</strong>, χ changes sign and becomes large. Typical readout designs use ${m('g/2π ≈ 50–150')} MHz and ${m('Δ/2π ≈ 1–2')} GHz, giving ${m('χ/2π')} of 0.5–5 MHz.</p>
+${LAB('chi')}
+<h2>Costs of being coupled</h2>
+<ul>
+<li><strong>Purcell decay.</strong> The qubit keeps a small resonator component, of weight ${m('(g/Δ)²')}, so it inherits a share of the resonator’s loss: ${m('γ<sub>P</sub> ≈ κ (g/Δ)²')}. Purcell filters block this channel ([[L:readout]]).</li>
+<li><strong>Measurement-induced dephasing.</strong> Photons in the resonator carry information about the qubit, so they dephase it. For a resonator holding ${m('n̄')} photons, ${m('Γ<sub>m</sub> = 2κχ²n̄/(κ²/4 + χ²)')}, which is ${m('8χ²n̄/κ')} when ${m('χ ≪ κ')}. This is the useful part of measurement, but it also means stray photons are harmful.</li>
+<li><strong>Thermal photons.</strong> Even 0.1% of a thermal photon in the readout resonator randomly Stark-shifts the qubit and is often a leading source of dephasing; it is why readout lines are heavily attenuated and filtered ([[L:cryostat]]).</li>
+<li><strong>The dispersive approximation breaks down</strong> as the photon number approaches the critical value ${m('n<sub>crit</sub> = Δ²/4g²')}; drive harder and the measurement causes unwanted transitions.</li>
+</ul>
+<h2>Counting photons with a qubit</h2>
+<p>If ${m('2χ')} exceeds the resonator linewidth ${m('κ')} and the qubit linewidth, the <strong>strong dispersive regime</strong>, the qubit’s spectrum splits into separate lines, one for each photon number, at ${m('ω<sub>q</sub> + 2χn')}. The height of each line is the probability of that photon number (Schuster et al., 2007). The qubit becomes a photon counter, and a pulse at one of those lines flips the qubit only if the resonator holds exactly ${m('n')} photons. That conditional control is the basis of the bosonic encodings in [[L:cavities]].</p>
+${LAB('pns')}
+`,
+  labs: {
+    chi: {
+      title: 'Dispersive shift: two-level atom versus transmon',
+      cap: 'The dispersive shift χ against the qubit–resonator detuning Δ = ω_q − ω_r, for a two-level atom (g²/Δ, dashed) and a transmon (g²α/(Δ(Δ+α)), solid). The shaded band is the straddling regime, where χ is large and changes sign. Near Δ = 0 and Δ = −α the formulas break down (the qubit is no longer dispersive) and the curves are clipped. Move the marker to read χ, the Purcell limit and the critical photon number.',
+      build(body, id) {
+        let g = 80, al = -250, D = 1200, kap = 1;
+        const cv = canvas('', 'height:280px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const chiT = d => g * g * al / (d * (d + al)), chi2 = d => g * g / d;
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), Ym = 12, A = axes(ctx, w, H, { x: [-2000, 2000], y: [-Ym, Ym], xt: [-2000, -1000, 0, 1000, 2000], yt: [-10, -5, 0, 5, 10], xl: 'Δ/2π = (ω_q − ω_r)/2π (MHz)', yl: 'χ/2π (MHz)' });
+          ctx.fillStyle = rgba(T.good, .12); ctx.fillRect(A.X(0), A.T, A.X(-al) - A.X(0), A.B - A.T);
+          txt(ctx, 'straddling', (A.X(0) + A.X(-al)) / 2, A.T + 10, { font: '600 10px "JetBrains Mono",monospace', color: T.good });
+          polyline(ctx, [[A.L, A.Y(0)], [A.R, A.Y(0)]], T.line, 1);
+          const curve = (f, col, dash) => { let seg2 = []; for (let k = 0; k <= 800; k++) { const d = -2000 + 4000 * k / 800, y = f(d), ok = isFinite(y) && Math.abs(y) < Ym && Math.abs(d) > g && Math.abs(d + al) > g * .7; if (ok) seg2.push([A.X(d), A.Y(y)]); else if (seg2.length) { polyline(ctx, seg2, col, 2.2, dash); seg2 = []; } } polyline(ctx, seg2, col, 2.2, dash); };
+          curve(chi2, T.muted, [5, 4]); curve(chiT, T.copper);
+          const y = chiT(D); if (Math.abs(y) < Ym) dot(ctx, A.X(D), A.Y(y), 6, T.copper, T.surface);
+        });
+        const upd = () => {
+          const c = chiT(D), tP = 1 / (TAU * kap * 1e6 * (g / D) ** 2), nc = D * D / (4 * g * g), disp = Math.abs(g / D) < .1;
+          ro.innerHTML = `<span class="k">transmon χ/2π       </span>${num(c, 3)} MHz &nbsp;<span class="k">(two-level g²/Δ: ${num(chi2(D), 2)})</span><br><span class="k">full shift 2χ/2π    </span>${num(2 * c, 3)} MHz<br><span class="k">Purcell limit (no filter) </span>${fmtSI(tP, 's', 0)}<br><span class="k">critical photon number Δ²/4g² </span>${num(nc, 0)}<br><span class="k">g/|Δ| </span>${num(Math.abs(g / D), 3)} ${disp ? '' : '<b style="color:var(--bad)">· not dispersive</b>'}`;
+          p.inv();
+        };
+        body.append(cv, h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, slider({ id: id('D'), label: 'Detuning Δ/2π', min: -2000, max: 2000, step: 10, value: D, fmt: v => v + ' MHz', on: v => { D = v === 0 ? 10 : v; upd(); } }),
+            slider({ id: id('g'), label: 'Coupling g/2π', min: 20, max: 200, step: 1, value: g, fmt: v => v + ' MHz', on: v => { g = v; upd(); } })),
+          h('div', { class: 'stack' }, slider({ id: id('a'), label: 'Anharmonicity α/2π', min: -400, max: -100, step: 5, value: al, fmt: v => v + ' MHz', on: v => { al = v; upd(); } }),
+            slider({ id: id('k'), label: 'Resonator linewidth κ/2π', min: .2, max: 10, step: .1, value: kap, fmt: v => num(v, 1) + ' MHz', on: v => { kap = v; upd(); } }), ro)));
+        upd();
+      }
+    },
+    pns: {
+      title: 'Photon-number splitting of the qubit line',
+      cap: 'A simulated qubit spectroscopy trace with photons in the resonator. Each photon number n adds a Lorentzian line at 2χn, weighted by the probability of n (Poisson for a coherent drive, Bose–Einstein for thermal photons) and broadened by roughly γ₂ + nκ. When 2χ is well above κ the lines separate and the qubit counts photons; when it is below, they merge into one shifted, broadened line. The grey bars are the true photon-number distribution; note that each line’s area, not its height, follows it, because higher-n lines are broader.',
+      build(body, id) {
+        let chi2 = 4, kap = .5, nb = 1.5, dist = 'coh';
+        const g2 = .2, cv = canvas('', 'height:260px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const P = n => dist === 'coh' ? poisson(nb, n) : thermalP(nb, n);
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), nmax = Math.ceil(nb + 5 * Math.sqrt(nb + .5) + 4), xm = Math.max(4 * chi2, chi2 * (nmax * .8)) + 3;
+          const S = x => { let s = 0; for (let n = 0; n <= nmax; n++) { const gam = (g2 + n * kap) / 2; s += P(n) * gam / Math.PI / ((x - chi2 * n) ** 2 + gam * gam); } return s; };
+          let mx = 0; const xs = []; for (let k = 0; k <= 900; k++) { const x = -3 + (xm + 3) * k / 900, y = S(x); xs.push([x, y]); mx = Math.max(mx, y); }
+          const A = axes(ctx, w, H, { x: [-3, xm], y: [0, 1.08], xt: [0, ...[1, 2, 3, 4, 5, 6, 8, 10].map(n => n * chi2).filter(v => v < xm)].map(v => +v.toFixed(1)), yt: [0, .5, 1], yf: v => num(v, 1), xl: 'probe frequency − ω_q (MHz)', yl: 'qubit response (normalized)' });
+          for (let n = 0; n <= nmax; n++) { const x = chi2 * n; if (x > xm) break; const hgt = P(n) / Math.max(...[...Array(nmax + 1)].map((_, k) => P(k))); polyline(ctx, [[A.X(x), A.Y(0)], [A.X(x), A.Y(hgt)]], rgba(T.ink, .35), 6); if (P(n) > .02) txt(ctx, 'n=' + n, A.X(x), A.Y(hgt) - 9, { font: '500 9.5px "JetBrains Mono",monospace' }); }
+          polyline(ctx, xs.map(([x, y]) => [A.X(x), A.Y(y / mx)]), T.copper, 2.2);
+        });
+        const upd = () => {
+          const c = chi2 / 2, Gm = 2 * kap * c * c * nb / (kap * kap / 4 + c * c);
+          ro.innerHTML = `<span class="k">2χ / κ </span>${num(chi2 / kap, 1)} ${chi2 > 2 * kap ? '<b style="color:var(--good)">· resolved</b>' : chi2 > kap ? '· marginal' : '<b style="color:var(--bad)">· unresolved</b>'}<br><span class="k">mean Stark shift 2χn̄ </span>${num(chi2 * nb, 2)} MHz<br><span class="k">measurement-induced dephasing time 1/Γ_m </span>${nb > 0 ? fmtSI(1 / (TAU * 1e6 * Gm), 's', 1) : '—'}`;
+          p.inv();
+        };
+        body.append(cv, h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, slider({ id: id('c'), label: 'Full dispersive shift 2χ/2π', min: .2, max: 10, step: .1, value: chi2, fmt: v => num(v, 1) + ' MHz', on: v => { chi2 = v; upd(); } }),
+            slider({ id: id('k'), label: 'Resonator linewidth κ/2π', min: .1, max: 6, step: .05, value: kap, fmt: v => num(v, 2) + ' MHz', on: v => { kap = v; upd(); } })),
+          h('div', { class: 'stack' }, slider({ id: id('n'), label: 'Mean photon number n̄', min: 0, max: 6, step: .1, value: nb, fmt: v => num(v, 1), on: v => { nb = v; upd(); } }),
+            field('Photon statistics', seg([{ v: 'coh', label: 'Coherent (driven)' }, { v: 'th', label: 'Thermal' }], dist, v => { dist = v; upd(); }, 'Photon statistics')), ro)));
+        upd();
+      }
+    }
+  },
+  take: ['For |Δ| ≫ g the qubit and resonator stop exchanging energy but shift each other: H ≈ (ω_r + χσ_z)a†a + ½(ω_q + χ)σ_z.',
+    'For a transmon χ = g²α/(Δ(Δ+α)), much smaller than g²/Δ at large detuning and large with a sign flip in the straddling regime.',
+    'The coupling costs Purcell decay κ(g/Δ)², measurement-induced dephasing 8χ²n̄/κ and dephasing from stray thermal photons; dispersive physics fails near n_crit = Δ²/4g².',
+    'In the strong dispersive regime (2χ > κ, γ) the qubit line splits by photon number, so the qubit counts photons and can be controlled conditionally on them.'],
+  quiz: QZ([
+    ['What characterizes the dispersive regime?', ['Δ = 0', 'The qubit–resonator detuning is much larger than the coupling, |Δ| ≫ g', 'g ≫ ω', 'The resonator is removed'], 1, 'With large detuning, energy exchange is suppressed and only state-dependent frequency shifts remain.'],
+    ['For a two-level atom, what is the dispersive shift?', ['g/Δ', 'g²/Δ', 'Δ²/g', 'gΔ'], 1, 'Second-order perturbation theory in g gives χ = g²/Δ.'],
+    ['What is the ac Stark shift in circuit QED?', ['A shift of the resonator by the qubit', 'A shift of the qubit frequency by 2χ per photon in the resonator', 'A shift caused by temperature', 'The anharmonicity'], 1, 'Grouping the dispersive Hamiltonian by σ_z shows the qubit frequency depends on a†a.'],
+    ['Why is a transmon’s χ smaller than g²/Δ at large detuning?', ['Its coupling is weaker', 'The |1⟩→|2⟩ transition contributes a shift of opposite sign that nearly cancels, leaving χ ≈ g²α/Δ²', 'It has no second level', 'Because κ is large'], 1, 'χ = χ₀₁ − χ₁₂/2 = g²/Δ − g²/(Δ+α) = g²α/(Δ(Δ+α)).'],
+    ['What is the straddling regime?', ['When the qubit is below 1 GHz', 'When the resonator frequency lies between the qubit’s f₁₂ and f₀₁, where χ is large and changes sign', 'When two qubits share a resonator', 'When κ = χ'], 1, 'For 0 < Δ < |α| the transmon χ formula has the opposite sign and a large magnitude.'],
+    ['What is Purcell decay?', ['Decay of the resonator into the qubit', 'Decay of the qubit through its small resonator component, at rate about κ(g/Δ)²', 'Thermal excitation', 'Dephasing from flux noise'], 1, 'The dressed qubit state contains (g/Δ)² of a photon, which leaks out at rate κ.'],
+    ['For χ ≪ κ, what is the measurement-induced dephasing rate for n̄ photons?', ['χn̄', '8χ²n̄/κ', 'κn̄', 'χ/κ'], 1, 'Γ_m = 2κχ²n̄/(κ²/4 + χ²) reduces to 8χ²n̄/κ for small χ.'],
+    ['Why are thermal photons in the readout resonator harmful?', ['They heat the qubit to 1 K', 'They randomly Stark-shift the qubit frequency, causing dephasing', 'They improve readout', 'They are not harmful'], 1, 'Each thermal photon shifts the qubit by 2χ; fluctuating photon number means fluctuating frequency.'],
+    ['What is the critical photon number?', ['The number of qubits', 'n_crit = Δ²/4g², above which the dispersive approximation fails', 'One photon', 'κ/χ'], 1, 'As photon number approaches Δ²/4g², higher-order terms grow and measurement can induce transitions.'],
+    ['What happens in the strong dispersive regime?', ['The qubit cannot be read', 'The qubit spectrum splits into separate lines for each photon number, weighted by its probability', 'χ becomes zero', 'The resonator stops ringing'], 1, 'When 2χ exceeds κ and the qubit linewidth, lines at ω_q + 2χn are resolved: photon-number splitting.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'cqedcouple', n: 41.3, stage: CQED, minutes: 16, title: 'Coupling qubits: buses, tunable couplers and the CZ gate',
+  lede: 'Two transmons talk through a capacitor or a shared resonator. Tune them into resonance and they swap; tune |11⟩ near |20⟩ and they pick up a conditional phase. The hard part is making them stop talking when they should be quiet.',
+  html: `
+<h2>Exchange coupling</h2>
+<p>Two transmons connected by a small capacitor, or both coupled to a common resonator bus, feel an exchange interaction</p>
+${EQ('H<sub>int</sub>/ħ = J (a†b + a b†)')}
+<p>where ${m('a')} and ${m('b')} lower each transmon. With a direct capacitor ${m('J/2π')} is typically 5–20 MHz. Through a resonator, the qubits exchange virtual photons and ${m('J = (g₁g₂/2)(1/Δ₁ + 1/Δ₂)')} (Majer et al., 2007). Like the Jaynes–Cummings coupling, the exchange term conserves excitations, so the two-qubit levels group into blocks: ${m('|00⟩')}; ${m('|01⟩, |10⟩')}; and ${m('|11⟩, |20⟩, |02⟩')}.</p>
+<h2>Two ways to entangle</h2>
+<ul>
+<li><strong>iSWAP.</strong> Bring the two qubits to the same frequency. ${m('|01⟩')} and ${m('|10⟩')} are then resonant and swap at rate ${m('2J')}; stopping after ${m('t = π/2J')} gives an iSWAP. Stopping halfway gives ${m('√iSWAP')}.</li>
+<li><strong>CZ.</strong> Tune one qubit so that ${m('|11⟩')} approaches ${m('|20⟩')} (or ${m('|02⟩')}), which happens when the detuning equals the anharmonicity. The repulsion between those levels pushes ${m('|11⟩')} by an amount that ${m('|01⟩')} and ${m('|10⟩')} do not feel. Going in and out adiabatically, so no population is left in ${m('|20⟩')}, accumulates a conditional phase; choosing the pulse so it reaches π gives a <strong>controlled-Z</strong> (DiCarlo et al., 2009). Modern versions use fast, net-zero flux pulses that are robust to slow drifts.</li>
+</ul>
+<h2>The problem of always-on ZZ</h2>
+<p>Even when the qubits are far detuned, the same level repulsion leaves a small residual shift of ${m('|11⟩')}:</p>
+${EQ('ζ = E<sub>11</sub> − E<sub>10</sub> − E<sub>01</sub> + E<sub>00</sub> ≈ 2J²(α₁ + α₂) / ((Δ + α₁)(Δ − α₂))')}
+<p>This <strong>ZZ coupling</strong>, tens to hundreds of kilohertz for fixed couplings, makes each qubit’s frequency depend on its neighbour’s state. It dephases idle qubits and spoils parallel gates.</p>
+${LAB('twoq')}
+<h2>Tunable couplers</h2>
+<p>The fix used by most current processors is a <strong>tunable coupler</strong>: a third, flux-tunable transmon between the two qubits (Yan et al., 2018). The qubits couple to each other directly and through the coupler, and the two paths interfere: ${m('J<sub>eff</sub> ≈ g₁₂ + g₁g₂/Δ<sub>c</sub>')}. At one coupler frequency the paths cancel and the qubits are isolated, with ZZ close to zero; moving the coupler switches the interaction on for a gate. Google’s Sycamore and Willow processors, and many others, use this architecture, reaching two-qubit gate errors below 0.5%.</p>
+${NOTE('All-microwave alternatives', `<p>Flux-tunable qubits pay for their flexibility with flux noise and extra wiring. Fixed-frequency qubits avoid both and entangle with microwaves alone, using the cross-resonance gate ([[L:crossres]]). Parametric gates, which modulate a coupler at the difference frequency of two qubits, are a third option.</p>`)}
+`,
+  labs: {
+    twoq: {
+      title: 'Two coupled transmons: avoided crossings and ZZ',
+      cap: 'Energies of two transmons coupled by J(a†b + ab†), computed exactly in each excitation block, against the frequency of qubit 1 relative to qubit 2 (Δ = ω₁ − ω₂). Top left: the single-excitation block, with the iSWAP crossing at Δ = 0. Top right: the two-excitation block (|11⟩, |20⟩, |02⟩), measured from ω₁ + ω₂; |11⟩ meets |20⟩ at Δ = −α and |02⟩ at Δ = +α, where CZ gates are done. Bottom: the size of the residual ZZ coupling, on a log scale.',
+      build(body, id) {
+        let J = 12, al = -250, D = 600;
+        const c1 = canvas('', 'height:220px'), c2 = canvas('', 'height:220px'), c3 = canvas('', 'height:200px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const blocks = d => {
+          const one = [d / 2 + Math.sqrt(d * d / 4 + J * J), d / 2 - Math.sqrt(d * d / 4 + J * J)];
+          const s2 = Math.SQRT2 * J, Hm = [d, s2, s2, s2, 2 * d + al, 0, s2, 0, al], R = eigSymV(Hm, 3);
+          let k11 = 0; for (let k = 1; k < 3; k++) if (R.V[0 * 3 + k] ** 2 > R.V[0 * 3 + k11] ** 2) k11 = k;
+          const e10 = Math.abs(one[0] - d) < Math.abs(one[1] - d) ? one[0] : one[1], e01 = one[0] + one[1] - e10;
+          return { one, two: Array.from(R.w), zz: R.w[k11] - e10 - e01 };
+        };
+        let scan = [];
+        const recompute = () => { scan = []; const X = Math.max(700, 2 * Math.abs(al) + 200); for (let k = 0; k <= 300; k++) { const d = -X + 2 * X * k / 300; scan.push([d, blocks(Math.abs(d) < 1e-6 ? 1e-6 : d)]); } };
+        const X = () => scan[scan.length - 1][0];
+        const p1 = painter(c1, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), xm = X(), A = axes(ctx, w, H, { x: [-xm, xm], y: [-xm * .6, xm * .6], xt: [-xm, 0, xm].map(v => Math.round(v)), yt: [0], xl: 'Δ/2π (MHz)', yl: 'single-excitation energies' });
+          for (let b = 0; b < 2; b++) polyline(ctx, scan.map(([d, r]) => [A.X(d), A.Y(r.one[b] - d / 2)]), b ? T.cyan : T.copper, 2.2);
+          polyline(ctx, [[A.X(D), A.T], [A.X(D), A.B]], T.ink, 1.1, [4, 3]); txt(ctx, 'iSWAP', A.X(0), A.T + 8, { font: '600 10px "JetBrains Mono",monospace', color: T.good });
+        });
+        const p2 = painter(c2, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), xm = X(), A = axes(ctx, w, H, { x: [-xm, xm], y: [-xm * 1.2, xm * 1.2], xt: [-xm, 0, xm].map(v => Math.round(v)), yt: [0], xl: 'Δ/2π (MHz)', yl: 'two-excitation energies − (ω₁+ω₂)' });
+          const cols = [T.cyan, T.copper, T.good]; for (let b = 0; b < 3; b++) polyline(ctx, scan.map(([d, r]) => [A.X(d), A.Y(r.two[b] - d)]), cols[b], 2);
+          [[-al, 'CZ via |20⟩'], [al, 'CZ via |02⟩']].forEach(([x, s]) => { polyline(ctx, [[A.X(x), A.T], [A.X(x), A.B]], T.muted, 1, [2, 4]); txt(ctx, s, A.X(x), A.B - 10, { font: '600 10px "JetBrains Mono",monospace', color: T.good }); });
+          polyline(ctx, [[A.X(D), A.T], [A.X(D), A.B]], T.ink, 1.1, [4, 3]);
+        });
+        const p3 = painter(c3, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), xm = X(), A = axes(ctx, w, H, { x: [-xm, xm], y: [1e-3, 100], ylog: true, xt: [-xm, -Math.round(Math.abs(al)), 0, Math.round(Math.abs(al)), xm].map(v => Math.round(v)), yt: [1e-3, 1e-2, .1, 1, 10, 100], yf: v => v >= 1 ? v + ' MHz' : num(v * 1000, 0) + ' kHz', xl: 'Δ/2π (MHz)', yl: '|ζ|/2π' });
+          polyline(ctx, scan.map(([d, r]) => [A.X(d), A.Y(clamp(Math.abs(r.zz), 1e-3, 100))]), T.copper, 2.2);
+          const r = blocks(D); dot(ctx, A.X(D), A.Y(clamp(Math.abs(r.zz), 1e-3, 100)), 6, T.copper, T.surface);
+        });
+        const upd = full => {
+          if (full) recompute(); const r = blocks(D), z = Math.abs(r.zz), near = Math.abs(D) < 3 * J ? 'near the iSWAP resonance' : Math.abs(Math.abs(D) - Math.abs(al)) < 4 * J ? 'near a CZ resonance' : 'idle (far detuned)';
+          ro.innerHTML = `<span class="k">Δ/2π </span>${D} MHz · ${near}<br><span class="k">residual ZZ |ζ|/2π </span>${z >= 1 ? num(z, 2) + ' MHz' : num(z * 1000, 1) + ' kHz'}<br><span class="k">iSWAP time π/2J </span>${num(1000 / (4 * J), 1)} ns`;
+          p1.inv(); p2.inv(); p3.inv();
+        };
+        body.append(h('div', { class: 'split even' }, c1, c2), c3, h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, slider({ id: id('D'), label: 'Detuning Δ/2π = (ω₁ − ω₂)/2π', min: -900, max: 900, step: 5, value: D, fmt: v => v + ' MHz', on: v => { D = v === 0 ? .5 : v; upd(false); } }),
+            slider({ id: id('J'), label: 'Coupling J/2π', min: 1, max: 40, step: .5, value: J, fmt: v => num(v, 1) + ' MHz', on: v => { J = v; upd(true); } })),
+          h('div', { class: 'stack' }, slider({ id: id('a'), label: 'Anharmonicity α/2π (both)', min: -350, max: -150, step: 5, value: al, fmt: v => v + ' MHz', on: v => { al = v; upd(true); } }), ro)));
+        upd(true);
+      }
+    }
+  },
+  take: ['Capacitive or resonator-mediated coupling gives an exchange term J(a†b + ab†), with J/2π typically 5–20 MHz; levels group into excitation blocks.',
+    'iSWAP: tune the qubits into resonance so |01⟩ and |10⟩ swap at rate 2J. CZ: tune |11⟩ near |20⟩ (detuning equal to the anharmonicity) and return adiabatically to pick up a conditional phase of π.',
+    'Fixed couplings leave an always-on ZZ shift ζ ≈ 2J²(α₁+α₂)/((Δ+α₁)(Δ−α₂)) that dephases idle qubits and spoils parallel gates.',
+    'Tunable couplers make two coupling paths interfere, switching the interaction off when idle and on for gates.'],
+  quiz: QZ([
+    ['What interaction does a coupling capacitor between two transmons produce?', ['A ZZ term only', 'An exchange term J(a†b + ab†)', 'A measurement', 'A magnetic field'], 1, 'Capacitive coupling of the two charge variables gives, in the rotating frame, an exchange of excitations.'],
+    ['How do two qubits couple through a shared resonator bus?', ['By real photons only', 'By exchanging virtual photons, giving J = (g₁g₂/2)(1/Δ₁ + 1/Δ₂)', 'They cannot', 'Through the fridge'], 1, 'With both qubits detuned from the bus, second-order processes create an effective qubit–qubit exchange.'],
+    ['How is an iSWAP gate performed with tunable transmons?', ['By measuring both qubits', 'By bringing them into resonance so |01⟩ and |10⟩ swap, for a time π/2J', 'By detuning them far apart', 'By driving |2⟩'], 1, 'On resonance the exchange term fully swaps a single excitation; stopping at π/2J gives iSWAP.'],
+    ['At what detuning are CZ gates usually performed?', ['Δ = 0', 'When the detuning equals the anharmonicity, so |11⟩ is resonant with |20⟩ or |02⟩', 'Δ = 10 GHz', 'Any detuning'], 1, '|11⟩ has energy ω₁ + ω₂ and |20⟩ has 2ω₁ + α₁; they meet at ω₂ − ω₁ = α₁.'],
+    ['Why must the CZ flux pulse be adiabatic with respect to the |11⟩–|20⟩ crossing?', ['To heat the qubit', 'So population returns fully to |11⟩ with only a phase, rather than leaking into |20⟩', 'To read out the qubit', 'To lower J'], 1, 'A diabatic passage would leave population in |20⟩, a leakage error; adiabatic passage keeps only the accumulated phase.'],
+    ['What is residual ZZ coupling?', ['A readout error', 'An always-on shift of |11⟩ relative to |01⟩ + |10⟩, from level repulsion with |20⟩ and |02⟩', 'Flux noise', 'A decay channel'], 1, 'ζ = E₁₁ − E₁₀ − E₀₁ + E₀₀ is non-zero whenever J ≠ 0 and the qubits have finite anharmonicity.'],
+    ['Why is always-on ZZ harmful?', ['It raises T₁', 'Each qubit’s frequency depends on its neighbour’s state, which dephases idle qubits and corrupts simultaneous gates', 'It makes readout faster', 'It is not harmful'], 1, 'An uncontrolled conditional phase accumulates during idling and other gates.'],
+    ['How does a tunable coupler turn the interaction off?', ['By cooling the qubits', 'The direct coupling and the coupling through the coupler interfere and can be made to cancel', 'By disconnecting a wire', 'By measuring the coupler'], 1, 'J_eff ≈ g₁₂ + g₁g₂/Δ_c; choosing the coupler frequency so the terms cancel gives zero effective coupling.'],
+    ['Which processors use flux-tunable qubits with tunable couplers?', ['Trapped-ion machines', 'Google’s Sycamore and Willow, among others', 'Photonic chips', 'Only annealers'], 1, 'Google’s architecture uses tunable transmons with tunable couplers between them.'],
+    ['What is the cost of flux tunability?', ['Lower anharmonicity', 'Sensitivity to flux noise away from sweet spots, plus extra control wiring', 'No readout', 'It forbids CZ gates'], 1, 'Every tunable element needs a flux line and is exposed to 1/f flux noise when biased off its sweet spot.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'crossres', n: 41.4, stage: CQED, minutes: 15, title: 'Cross-resonance: entangling fixed-frequency qubits with microwaves',
+  lede: 'Drive one qubit at its neighbour’s frequency and the neighbour rotates at a speed that depends on the first qubit’s state. That conditional rotation is a CNOT in disguise, and it needs no flux at all.',
+  html: `
+<h2>The idea</h2>
+<p>Fixed-frequency transmons have the best coherence: no SQUID, no flux line, no flux noise. But they cannot be tuned into resonance for an iSWAP or a CZ. The <strong>cross-resonance</strong> (CR) gate (Paraoanu 2006; Rigetti and Devoret 2010; Chow et al., 2011) works around this. Two qubits, a <strong>control</strong> at ${m('ω<sub>c</sub>')} and a <strong>target</strong> at ${m('ω<sub>t</sub>')}, share a weak fixed coupling ${m('J')}. A microwave drive of amplitude ${m('Ω')} applied to the control, but at the <em>target’s</em> frequency, leaks through the coupling and rotates the target, and the size of the leak depends on the state of the control.</p>
+<h2>The effective Hamiltonian</h2>
+<p>To first order in the drive, the two-qubit dynamics in the rotating frame is described by</p>
+${EQ('H<sub>CR</sub> ≈ ½ (ν<sub>ZX</sub> Z⊗X + ν<sub>IX</sub> I⊗X + ν<sub>ZI</sub> Z⊗I + ν<sub>ZZ</sub> Z⊗Z + …)')}
+<p>The useful term is ${m('ZX')}: the target rotates about X one way if the control is ${m('|0⟩')} and the other way if it is ${m('|1⟩')}. For transmons, with ${m('Δ = ω<sub>c</sub> − ω<sub>t</sub>')} and control anharmonicity ${m('α')},</p>
+${EQ('ν<sub>ZX</sub> ≈ −(JΩ/Δ) · α/(Δ + α)')}
+<p>(Magesan and Gambetta, 2020). Running the ZX interaction for a quarter period gives ${m('ZX<sub>90</sub>')}, which single-qubit rotations turn into a CNOT. With ${m('J/2π ≈ 3')} MHz, ${m('Δ/2π ≈ −100')} MHz and ${m('Ω/2π ≈ 50')} MHz, ${m('ν<sub>ZX</sub>')} is about 1 MHz and the gate takes about 200–300 ns.</p>
+<h2>Cleaning up the unwanted terms</h2>
+<ul>
+<li><strong>IX</strong> rotates the target regardless of the control, from classical crosstalk and the transmon level structure. It is removed by an extra <strong>cancellation tone</strong> on the target, or by echoing.</li>
+<li><strong>ZI</strong> is a Stark shift of the control, and <strong>ZZ</strong> the static coupling of [[L:cqedcouple]].</li>
+<li>The <strong>echoed CR</strong> sequence, CR⁺, then an X on the control, then CR⁻ (the drive with its sign flipped), then X on the control, keeps ZX, which flips sign twice, and cancels IX, ZI and ZZ to first order.</li>
+</ul>
+${LAB('cr')}
+<h2>The frequency-planning problem</h2>
+<p>The formula shows where CR works. At ${m('Δ → 0')} and ${m('Δ → −α')} the rate blows up and the perturbative picture fails: those are collisions, where the drive excites the wrong transitions. Far from both, ${m('ν<sub>ZX</sub>')} falls like ${m('1/Δ²')} and the gate becomes slow. The sweet range is a detuning comparable to the anharmonicity, which is why fixed-frequency lattices need careful frequency allocation and tight fabrication control ([[L:scmaterials]]). IBM’s Eagle, Heron and later processors are built on this all-microwave approach, with tunable couplers added in Heron to switch off ZZ.</p>
+`,
+  labs: {
+    cr: {
+      title: 'A conditional rotation of the target',
+      cap: 'Left: the target qubit’s Bloch vector in the Y–Z plane after a CR drive of the chosen duration, starting from |0⟩, for the control in |0⟩ (blue) and |1⟩ (copper). ZX rotates them in opposite directions; IX rotates both the same way. At the ZX₉₀ time with no IX, they point in opposite directions: the gate has entangled the qubits. Turn on the echo to cancel IX. Right: the ZX rate against control–target detuning, with the collisions marked.',
+      build(body, id) {
+        let J = 3, D = -100, al = -330, Om = 50, ix = .3, tg = 0, echo = false;
+        const cb = canvas('sq', 'max-width:280px;margin:0 auto'), cr2 = canvas('', 'height:260px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const zx = d => -(J * Om / d) * al / (d + al);
+        const angles = t => { const z = zx(D), us = [1, -1].map(s => echo ? TAU * s * z * t : TAU * (ix + s * z) * t); return us; };
+        const tCnot = () => 1 / (4 * Math.abs(zx(D)));
+        const p1 = painter(cb, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), S = Math.min(w, H), R = S * .38, cx = w / 2, cy = H / 2;
+          ctx.strokeStyle = T.line; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - R - 10, cy); ctx.lineTo(cx + R + 10, cy); ctx.moveTo(cx, cy - R - 10); ctx.lineTo(cx, cy + R + 10); ctx.stroke();
+          txt(ctx, '|0⟩', cx, cy - R - 18, { font: MATHFONT(14), color: T.ink }); txt(ctx, '|1⟩', cx, cy + R + 18, { font: MATHFONT(14), color: T.ink }); txt(ctx, '−Y', cx + R + 22, cy, { font: '600 11px "JetBrains Mono",monospace' }); txt(ctx, '+Y', cx - R - 22, cy, { font: '600 11px "JetBrains Mono",monospace' });
+          const t = tg / 1000; angles(t).forEach((th, i) => { const col = i ? T.copper : T.cyan; arrow(ctx, cx, cy, cx + R * Math.sin(th), cy - R * Math.cos(th), col, 3, 10); });
+        });
+        const p2 = painter(cr2, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), Xm = 500, A = axes(ctx, w, H, { x: [-Xm, Xm], y: [0, 4], xt: [-400, -200, 0, 200, 400], yt: [0, 1, 2, 3, 4], xl: 'Δ/2π = (ω_c − ω_t)/2π (MHz)', yl: '|ν_ZX| (MHz)' });
+          let segp = []; for (let k = 0; k <= 800; k++) { const d = -Xm + 2 * Xm * k / 800, y = Math.abs(zx(d)); if (Math.abs(d) > 15 && Math.abs(d + al) > 15 && y < 4) segp.push([A.X(d), A.Y(y)]); else if (segp.length) { polyline(ctx, segp, T.copper, 2.2); segp = []; } } polyline(ctx, segp, T.copper, 2.2);
+          [[0, 'Δ = 0'], [-al, 'Δ = −α']].forEach(([x, s]) => { if (Math.abs(x) > Xm) return; ctx.fillStyle = rgba(T.bad, .14); ctx.fillRect(A.X(x - 25), A.T, A.X(x + 25) - A.X(x - 25), A.B - A.T); txt(ctx, s, A.X(x), A.T + 8, { font: '600 10px "JetBrains Mono",monospace', color: T.bad }); });
+          const y = Math.abs(zx(D)); if (y < 4) dot(ctx, A.X(D), A.Y(y), 6, T.copper, T.surface);
+        });
+        const tS = slider({ id: id('t'), label: 'Gate duration', min: 0, max: 800, step: 2, value: tg, fmt: v => v + ' ns', on: v => { tg = v; upd(); } });
+        const upd = () => {
+          const z = zx(D), tc = tCnot(), a = angles(tg / 1000), sep = Math.abs(((a[0] - a[1]) / Math.PI) % 2);
+          ro.innerHTML = `<span class="k">ν_ZX/2π </span>${num(Math.abs(z), 3)} MHz &nbsp;<span class="k">ZX₉₀ (CNOT) time </span>${num(tc * 1000, 0)} ns<br><span class="k">angle between the two target vectors </span>${num(sep * 180, 0)}° &nbsp;(180° = maximally entangling)<br><span class="k">IX drift of both vectors </span>${echo ? 'cancelled by the echo' : num(360 * ix * tg / 1000, 0) + '°'}`;
+          p1.inv(); p2.inv();
+        };
+        body.append(h('div', { class: 'split' }, cb, cr2), h('div', { class: 'split even' },
+          h('div', { class: 'stack' }, tS, h('div', { class: 'btns' }, btn('Go to the CNOT time', () => { tS.set(Math.min(800, Math.round(tCnot() * 1000)), true); }, 'pri sm')),
+            field('Echo', seg([{ v: false, label: 'Plain CR' }, { v: true, label: 'Echoed CR' }], echo, v => { echo = v; upd(); }, 'Echo')),
+            slider({ id: id('ix'), label: 'Unwanted IX rate', min: 0, max: 1.5, step: .05, value: ix, fmt: v => num(v, 2) + ' MHz', on: v => { ix = v; upd(); } })),
+          h('div', { class: 'stack' }, slider({ id: id('D'), label: 'Detuning Δ/2π', min: -500, max: 500, step: 5, value: D, fmt: v => v + ' MHz', on: v => { D = Math.abs(v) < 5 ? 5 : v; upd(); } }),
+            slider({ id: id('O'), label: 'Drive amplitude Ω/2π', min: 5, max: 120, step: 1, value: Om, fmt: v => v + ' MHz', on: v => { Om = v; upd(); } }),
+            slider({ id: id('J'), label: 'Coupling J/2π', min: .5, max: 8, step: .1, value: J, fmt: v => num(v, 1) + ' MHz', on: v => { J = v; upd(); } }), ro)));
+        upd();
+      }
+    }
+  },
+  take: ['The cross-resonance gate drives the control qubit at the target’s frequency; through a fixed coupling J, the target rotates at a rate that depends on the control state.',
+    'The effective Hamiltonian contains the useful ZX term, ν_ZX ≈ −(JΩ/Δ)·α/(Δ+α), plus unwanted IX, ZI and ZZ terms.',
+    'Echoed CR (CR⁺, X on control, CR⁻, X on control) and cancellation tones keep ZX and remove the others; ZX₉₀ plus single-qubit gates makes a CNOT in about 200–400 ns.',
+    'The rate diverges at collisions (Δ = 0, Δ = −α) and falls off far away, so fixed-frequency lattices need careful frequency allocation.'],
+  quiz: QZ([
+    ['Why use fixed-frequency transmons?', ['They are faster to read', 'No flux line or SQUID means no flux noise and simpler wiring, giving better coherence', 'They have larger anharmonicity', 'They need no cooling'], 1, 'Removing tunability removes the main dephasing source of tunable transmons and their flux control lines.'],
+    ['In a cross-resonance gate, which qubit is driven, and at which frequency?', ['The target at its own frequency', 'The control, at the target’s frequency', 'Both at the resonator frequency', 'The coupler at the sum frequency'], 1, 'The drive goes on the control line at ω_t, and reaches the target through the coupling J.'],
+    ['Which term in the effective Hamiltonian does the entangling work?', ['IX', 'ZX', 'ZI', 'IZ'], 1, 'Z⊗X rotates the target about X in a direction set by the control’s Z value.'],
+    ['How does the ZX rate depend on the coupling and drive at weak drive?', ['It is independent of both', 'It is proportional to JΩ', 'It is proportional to J/Ω', 'It depends only on Δ'], 1, 'ν_ZX ≈ −(JΩ/Δ)·α/(Δ+α), linear in both the coupling and the drive amplitude.'],
+    ['What does the echoed CR sequence cancel?', ['ZX', 'IX, ZI and ZZ to first order, while keeping ZX', 'Readout errors', 'T₁ decay'], 1, 'Flipping the control and the drive sign reverses the unwanted terms between halves while ZX keeps its sign.'],
+    ['How is ZX₉₀ turned into a CNOT?', ['It already is one', 'By adding single-qubit rotations before and after', 'By measuring the control', 'By adding a third qubit'], 1, 'ZX₉₀ is locally equivalent to CNOT; single-qubit Z and X rotations complete it.'],
+    ['Where does the cross-resonance rate diverge?', ['At large detuning', 'At Δ = 0 and Δ = −α, which are frequency collisions', 'Never', 'At Δ = α/2 only'], 1, 'The perturbative denominators Δ and Δ + α vanish there, where the drive resonantly excites unwanted transitions.'],
+    ['How does the ZX rate behave far from those points?', ['It grows', 'It falls off roughly like 1/Δ², so gates get slow', 'It stays constant', 'It oscillates'], 1, 'For |Δ| ≫ |α|, ν_ZX ≈ −JΩα/Δ², small and slow.'],
+    ['Typical CR gate durations are', ['About 1 ns', 'About 200–400 ns', 'About 1 ms', 'About 1 s'], 1, 'With ν_ZX of order 1 MHz, a quarter period of ZX takes a few hundred nanoseconds.'],
+    ['Which company built its processors around cross-resonance gates?', ['Google', 'IBM', 'IonQ', 'D-Wave'], 1, 'IBM’s fixed-frequency transmon processors use echoed cross-resonance gates.']
+  ])
+});
+
+/* ===================================================================== */
+LESSONS.push({
+  id: 'cavities', n: 41.5, stage: CQED, minutes: 16, title: 'Resonators as qubits: 3D cavities, Kerr and cat states',
+  lede: 'A superconducting cavity can hold a photon for milliseconds, far longer than any transmon. Give it a little nonlinearity through a transmon ancilla, and the oscillator itself becomes a quantum memory, a source of cat states and a qubit with built-in protection.',
+  html: `
+<h2>Why store information in an oscillator</h2>
+<p>A transmon’s field lives partly in lossy surfaces. A <strong>3D cavity</strong>, a machined block of high-purity aluminium or niobium with a hollow inside, stores its field in vacuum. Single-photon lifetimes of 1–10 ms are routine in aluminium, and niobium cavities borrowed from particle accelerators, treated for very high quality factors, have kept photons for over a second. A popular shape is the <strong>coaxial stub cavity</strong> (Reagor et al., 2016), a post sticking up into a cylindrical hole, which needs no seams in the high-field region.</p>
+<p>An oscillator also has room: instead of two levels, it has many photon-number states, and photon loss, its dominant error, is a single, well-understood process. That combination is what <strong>bosonic codes</strong> exploit ([[L:bosonic]]).</p>
+<h2>Borrowing nonlinearity from a transmon</h2>
+<p>A cavity alone is linear and cannot be controlled beyond displacements ([[L:lccircuit]]). Coupling it dispersively to a transmon adds two things. The cross term ${m('χ a†a σ<sub>z</sub>')} lets the transmon detect and act on photon number ([[L:dispersive]]). And the cavity inherits a small <strong>self-Kerr</strong> nonlinearity,</p>
+${EQ('H<sub>Kerr</sub>/ħ = −(K/2) a†a†a a,&nbsp;&nbsp; K ≈ χ²/4|α|')}
+<p>which makes each photon number pick up phase at its own rate, typically tens of kilohertz. Combining photon-number-selective phase gates (<strong>SNAP</strong>) with displacements gives universal control of the oscillator (Krastanov et al., 2015; Heeres et al., 2015), and numerically optimized pulses or echoed conditional displacements now prepare almost any state in a few microseconds.</p>
+<h2>A cat from Kerr alone</h2>
+<p>Kerr evolution turns a coherent state into a cat. Each photon number ${m('n')} gains phase ${m('Kt·n(n−1)/2')}. At ${m('Kt = π')} the phases fall into a repeating pattern that makes the state a superposition of two coherent states on opposite sides of phase space, ${m('|iα⟩')} and ${m('|−iα⟩')} (a quarter turn from where it started, because ${m('a†a†aa')} also contains a term linear in ${m('n')}): a <strong>two-component cat</strong>. At ${m('Kt = π/2')} it is a four-component cat, at ${m('2π/q')} a ${m('q')}-component one, and at ${m('Kt = 2π')} the original coherent state revives. Kirchmair and colleagues watched exactly this happen in 2013.</p>
+${LAB('kerr')}
+<h2>Cat qubits</h2>
+<p>A <strong>cat qubit</strong> uses the two coherent states ${m('|α⟩')} and ${m('|−α⟩')}, or their even and odd superpositions, as its basis. An engineered process removes photons in pairs from the cavity and replaces them, <strong>two-photon dissipation</strong>, so the cavity is continuously pulled back towards the two-state manifold. Two consequences follow (Leghtas et al., 2015; Lescanne et al., 2020):</p>
+<ul>
+<li><strong>Bit flips are exponentially suppressed.</strong> To turn ${m('|α⟩')} into ${m('|−α⟩')}, noise must move the state across phase space, and the rate falls like ${m('e<sup>−2|α|²</sup>')}. Bit-flip times of seconds to minutes have been measured.</li>
+<li><strong>Phase flips grow only linearly.</strong> Losing a single photon flips the parity, so phase flips occur at about ${m('κ₁|α|²')}.</li>
+</ul>
+<p>The result is a <strong>biased-noise qubit</strong>: one error type is nearly absent, so a simple repetition code against the other suffices, saving most of the overhead of a surface code ([[L:thresholds]]). Alice &amp; Bob and AWS (whose Ocelot chip, announced in 2025, uses cat qubits with a repetition code) are pursuing this route.</p>
+${LAB('cat')}
+`,
+  labs: {
+    kerr: {
+      title: 'A coherent state under the Kerr effect',
+      cap: 'The Husimi Q function, the probability of finding the state at each point of phase space, for a coherent state of mean photon number n̄ evolving under H = −(K/2)a†a†aa. The photon-number distribution never changes, but the phases do: the state smears into a crescent, splits into a four-component cat at Kt = π/2 and a two-component cat at Kt = π, and revives at Kt = 2π. Press Play, or drag the time slider.',
+      build(body, id) {
+        let nb = 4, th = 0, playing = false, last = 0;
+        const NG = 66, cv = canvas('sq', 'max-width:340px;margin:0 auto'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        let img = null, key = '';
+        const compute = () => {
+          const R = Math.sqrt(nb) + 2.6, nmax = Math.ceil(nb + 6 * Math.sqrt(nb) + 6), a0 = Math.sqrt(nb), cr = [], ci = [];
+          for (let n = 0; n <= nmax; n++) { const amp = Math.exp(-nb / 2 + n * Math.log(a0 || 1e-300) - lf(n) / 2), ph = -th * n * (n - 1) / 2; cr.push(amp * Math.cos(ph)); ci.push(amp * Math.sin(ph)); }
+          const Q = new Float64Array(NG * NG); let mx = 0;
+          for (let j = 0; j < NG; j++) for (let i = 0; i < NG; i++) {
+            const x = -R + 2 * R * (i + .5) / NG, y = R - 2 * R * (j + .5) / NG; let tr = 1, ti = 0, sr = 0, si = 0;
+            for (let n = 0; n <= nmax; n++) { if (n > 0) { const s = 1 / Math.sqrt(n), nr = (tr * x + ti * y) * s, ni = (ti * x - tr * y) * s; tr = nr; ti = ni; } sr += tr * cr[n] - ti * ci[n]; si += tr * ci[n] + ti * cr[n]; }
+            const q = (sr * sr + si * si) * Math.exp(-(x * x + y * y)); Q[j * NG + i] = q; if (q > mx) mx = q;
+          }
+          img = heatImage(NG, NG, (i, j) => seqRGB(Q[j * NG + i] / mx)); return R;
+        };
+        let Rg = 3;
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const k2 = nb + '|' + th.toFixed(4) + '|' + Theme.get().dark; if (k2 !== key || !img) { Rg = compute(); key = k2; }
+          const T = Theme.get(), A = axes(ctx, w, H, { x: [-Rg, Rg], y: [-Rg, Rg], xt: [-3, 0, 3].filter(v => Math.abs(v) < Rg), yt: [-3, 0, 3].filter(v => Math.abs(v) < Rg), xl: 'Re β', yl: 'Im β', pad: { l: 30, b: 28, t: 8, r: 8 } });
+          drawHeat(ctx, img, A.L + 1, A.T, A.R - A.L - 1, A.B - A.T, true);
+          ctx.strokeStyle = rgba(T.ink, .2); ctx.beginPath(); ctx.moveTo(A.X(0), A.T); ctx.lineTo(A.X(0), A.B); ctx.moveTo(A.L, A.Y(0)); ctx.lineTo(A.R, A.Y(0)); ctx.stroke();
+        });
+        const label = () => { const r = th / Math.PI, near = v => Math.abs(r - v) < .015; return near(0) ? 'coherent state' : near(2) ? 'revival: coherent state again' : near(1) ? 'two-component cat (|iα⟩ and |−iα⟩)' : near(.5) || near(1.5) ? 'four-component cat' : near(2 / 3) || near(4 / 3) ? 'three-component cat' : near(.4) ? 'five-component cat' : r < .3 ? 'crescent: phase spreading with photon number' : 'superposition of several coherent states'; };
+        const tS = slider({ id: id('t'), label: 'Kerr phase Kt', min: 0, max: 2, step: .005, value: 0, fmt: v => num(v, 3) + ' π', on: v => { th = v * Math.PI; upd(); } });
+        const playB = btn('Play', () => { playing = !playing; playB.textContent = playing ? 'Pause' : 'Play'; last = performance.now(); }, 'pri sm');
+        const upd = () => { const Kt = th, tK = Kt / (TAU * 50e3); ro.innerHTML = `<span class="k">state </span>${label()}<br><span class="k">time needed for K/2π = 50 kHz </span>${fmtSI(tK, 's', 1)}<br><span class="k">mean photon number (unchanged) </span>${num(nb, 1)}`; p.inv(); };
+        Scope.tick(now => { if (!playing) return; const dt = (now - last) / 1000; last = now; let v = th / Math.PI + dt * .2; if (v > 2) v = 0; tS.set(+v.toFixed(3)); th = v * Math.PI; upd(); });
+        body.append(h('div', { class: 'split' }, cv, h('div', { class: 'stack' }, tS, h('div', { class: 'btns' }, playB,
+          btn('Kt = π/2', () => { tS.set(.5, true); }, 'sm'), btn('Kt = π', () => { tS.set(1, true); }, 'sm'), btn('Kt = 2π', () => { tS.set(2, true); }, 'sm')),
+          slider({ id: id('n'), label: 'Mean photon number n̄ = |α|²', min: 1, max: 8, step: .5, value: nb, fmt: v => num(v, 1), on: v => { nb = v; upd(); } }), ro)));
+        upd();
+      }
+    },
+    cat: {
+      title: 'Bias in a cat qubit',
+      cap: 'Illustrative error times for a dissipatively stabilized cat qubit against its size |α|²: bit-flip time growing like e^{2|α|²} (blue) and phase-flip time 1/(κ₁|α|²) falling (copper), where 1/κ₁ is the cavity’s single-photon lifetime. Real devices see the exponential growth level off at large |α|², from effects left out here. The noise bias is the ratio of the two times.',
+      build(body, id) {
+        let tl = 100, n0 = 4;
+        const G0 = 1e4, cv = canvas('', 'height:250px'), ro = h('div', { class: 'readout', style: 'white-space:normal' });
+        const Tb = n => Math.exp(2 * n) / G0, Tp = n => tl * 1e-6 / Math.max(n, .05);
+        const p = painter(cv, ({ ctx, w, h: H }) => {
+          const T = Theme.get(), A = axes(ctx, w, H, { x: [0, 10], y: [1e-7, 1e4], ylog: true, xt: [0, 2, 4, 6, 8, 10], yt: [1e-6, 1e-3, 1, 1e3], yf: v => fmtSI(v, 's', 0), xl: 'cat size |α|²', yl: 'error time' });
+          const b = [], ph = []; for (let k = 0; k <= 200; k++) { const n = .05 + 9.95 * k / 200; b.push([A.X(n), A.Y(clamp(Tb(n), 1e-7, 1e4))]); ph.push([A.X(n), A.Y(clamp(Tp(n), 1e-7, 1e4))]); }
+          polyline(ctx, b, T.cyan, 2.4); polyline(ctx, ph, T.copper, 2.4);
+          txt(ctx, 'bit flip', A.X(8.4), A.Y(clamp(Tb(8.4), 1e-7, 1e4)) + 14, { font: '600 10.5px "JetBrains Mono",monospace', color: T.cyan }); txt(ctx, 'phase flip', A.X(8.4), A.Y(Tp(8.4)) - 12, { font: '600 10.5px "JetBrains Mono",monospace', color: T.copper });
+          polyline(ctx, [[A.X(n0), A.T], [A.X(n0), A.B]], T.ink, 1.2, [4, 3]);
+        });
+        const upd = () => { const b = Tb(n0), q = Tp(n0); ro.innerHTML = `<span class="k">bit-flip time </span>${fmtSI(b, 's', 1)} &nbsp; <span class="k">phase-flip time </span>${fmtSI(q, 's', 1)}<br><span class="k">noise bias (ratio) </span>${sci(b / q, 1)}`; p.inv(); };
+        body.append(cv, h('div', { class: 'split even' },
+          slider({ id: id('n'), label: 'Cat size |α|²', min: .5, max: 10, step: .1, value: n0, fmt: v => num(v, 1), on: v => { n0 = v; upd(); } }),
+          h('div', { class: 'stack' }, slider({ id: id('l'), label: 'Single-photon lifetime 1/κ₁', min: 10, max: 1000, step: 10, value: tl, fmt: v => v + ' µs', on: v => { tl = v; upd(); } }), ro)));
+        upd();
+      }
+    }
+  },
+  take: ['3D superconducting cavities store photons for milliseconds or longer because their field lives in vacuum rather than in lossy surfaces.',
+    'A dispersively coupled transmon gives the cavity photon-number-dependent control (χa†aσ_z) and a small self-Kerr K ≈ χ²/4|α|; SNAP gates plus displacements are universal.',
+    'Under Kerr evolution a coherent state becomes a q-component cat at Kt = 2π/q and revives at Kt = 2π.',
+    'Cat qubits stabilized by two-photon dissipation have bit flips suppressed like e^{−2|α|²} and phase flips growing like κ₁|α|², a strongly biased qubit suited to repetition codes.'],
+  quiz: QZ([
+    ['Why do 3D cavities have much longer photon lifetimes than transmons?', ['They are colder', 'Their field is stored mostly in vacuum, with very little in lossy surfaces and dielectrics', 'They use copper', 'They have no photons'], 1, 'Surface participation in a 3D cavity is tiny, so dielectric and two-level-system losses are much weaker.'],
+    ['What is an advantage of encoding a qubit in an oscillator?', ['It needs no cooling', 'Many levels give room for redundancy, and the dominant error (photon loss) is a single, well-understood process', 'It cannot decay', 'It is classical'], 1, 'Bosonic codes use the large Hilbert space of one oscillator to detect and correct photon loss.'],
+    ['How does a cavity get nonlinearity?', ['It is intrinsically nonlinear', 'From a dispersively coupled transmon, which adds χa†aσ_z and a small self-Kerr term', 'From the fridge', 'From the readout amplifier'], 1, 'The cavity inherits part of the transmon’s Josephson nonlinearity through the coupling.'],
+    ['What is a SNAP gate?', ['A displacement', 'A selective number-dependent arbitrary phase: each photon number gets its own phase', 'A measurement', 'A two-qubit gate'], 1, 'Using the photon-number-split transmon lines, SNAP imprints chosen phases on chosen Fock states; with displacements it is universal.'],
+    ['Under the Kerr Hamiltonian, what happens to the photon-number distribution?', ['It spreads out', 'It stays the same; only the phases of the number states change', 'It becomes thermal', 'It collapses to vacuum'], 1, 'The Kerr term is diagonal in photon number, so populations are untouched.'],
+    ['At what Kerr phase does a coherent state become a two-component cat?', ['Kt = π/2', 'Kt = π', 'Kt = 2π', 'Kt = π/4'], 1, 'At Kt = π the phases repeat with period four in n, giving a superposition of two coherent states on opposite sides of phase space.'],
+    ['What happens at Kt = 2π?', ['The state is lost', 'The coherent state revives', 'It becomes a Fock state', 'It becomes a four-component cat'], 1, 'n(n−1)/2 is an integer, so every phase is a multiple of 2π: the original state returns.'],
+    ['What stabilizes a dissipative cat qubit?', ['Single-photon loss', 'Engineered two-photon dissipation that removes and replaces photons in pairs', 'Measuring the transmon', 'A magnetic field'], 1, 'Two-photon processes conserve parity and pull the state back to the manifold spanned by |α⟩ and |−α⟩.'],
+    ['How does the cat qubit’s bit-flip rate depend on its size?', ['Grows linearly', 'Falls exponentially, like e^{−2|α|²}', 'Is constant', 'Grows exponentially'], 1, 'Noise has to carry the state across phase space from α to −α, which is exponentially unlikely in the separation.'],
+    ['Why is a biased-noise qubit useful for error correction?', ['It needs no correction', 'With one error type nearly absent, a simple repetition code against the other can replace a full surface code, saving overhead', 'It can only do Clifford gates', 'It is easier to read'], 1, 'Correcting only phase flips with a 1D repetition code is far cheaper than a 2D code correcting both.']
+  ])
+});
+
+window.GLOSSARY_EXTRA.push(
+  ['Circuit QED', 'Circuit quantum electrodynamics: superconducting qubits coupled to on-chip microwave resonators, the framework for controlling and measuring them.', 'jaynes'],
+  ['Jaynes–Cummings model', 'A two-level atom coupled to one oscillator mode by g(a†σ₋ + aσ₊); it conserves excitations and gives a √n ladder of splittings.', 'jaynes'],
+  ['Vacuum Rabi splitting', 'The 2g splitting between the dressed states of |e,0⟩ and |g,1⟩ at resonance.', 'jaynes'],
+  ['Strong coupling', 'The regime in which the coupling g exceeds both the resonator and qubit loss rates.', 'jaynes'],
+  ['Dispersive regime', 'Qubit and resonator far detuned (|Δ| ≫ g): no energy exchange, but state-dependent frequency shifts χ.', 'dispersive'],
+  ['ac Stark shift', 'The shift of a qubit’s frequency by 2χ per photon in a dispersively coupled resonator.', 'dispersive'],
+  ['Purcell effect', 'Decay of a qubit through a coupled resonator, at rate about κ(g/Δ)² in the dispersive regime.', 'dispersive'],
+  ['Photon-number splitting', 'In the strong dispersive regime, the qubit line splits into separate lines for each resonator photon number.', 'dispersive'],
+  ['Tunable coupler', 'A flux-tunable element between two qubits whose coupling paths interfere, switching the interaction on and off.', 'cqedcouple'],
+  ['ZZ coupling', 'An always-on shift of |11⟩ relative to |01⟩ + |10⟩ between coupled qubits, from level repulsion with higher states.', 'cqedcouple'],
+  ['Cross-resonance gate', 'An entangling gate for fixed-frequency qubits: drive the control at the target’s frequency to get a ZX interaction.', 'crossres'],
+  ['3D cavity', 'A machined superconducting cavity whose photons live for milliseconds or longer, used as a quantum memory or bosonic qubit.', 'cavities'],
+  ['Kerr effect', 'A photon-number-dependent frequency shift, H = −(K/2)a†a†aa, that turns coherent states into cat states over time.', 'cavities'],
+  ['Cat qubit', 'A qubit encoded in coherent states |α⟩ and |−α⟩ of an oscillator, often stabilized by two-photon dissipation; strongly biased noise.', 'cavities'],
+  ['SNAP gate', 'Selective number-dependent arbitrary phase gate on an oscillator; with displacements, universal for bosonic control.', 'cavities']
+);
+})();
+
+/* =====================================================================
    QSage Learn · app shell
    Modules, routing, overview, module pages, lessons, quiz, glossary
    ===================================================================== */
@@ -16395,13 +17421,23 @@ const TOOLKIT = [
   { code: 'LIN', title: 'Linear algebra for quantum computing', blurb: 'The mathematics underneath every lesson, built from scratch with pictures: vectors and Dirac notation, inner products and orthogonality, matrices as maps, eigenvalues and eigenvectors, Hermitian and unitary matrices, tensor products, outer products, projectors and the trace, matrix exponentials, and the singular value and Schmidt decompositions.' }
 ];
 /* Group indices: 0–4 core-path stages, 5–10 research tracks, 11 the math toolkit (shown first). */
-const GROUPS = STAGES.map(s => Object.assign({ part: 1, code: s.temp }, s)).concat(TRACKS.map(t => Object.assign({ part: 2, temp: t.code }, t))).concat(TOOLKIT.map(t => Object.assign({ part: 0, temp: t.code }, t)));
-const GRANK = i => GROUPS[i].part === 0 ? i - 100 : i;
+/* Hardware tracks are appended after the toolkit so existing group indices (used by lesson files) stay fixed. */
+const HWTRACKS = [
+  { code: 'SCQ', title: 'Superconducting circuits', blurb: 'How a circuit becomes a qubit: LC oscillators and flux quantization, the Josephson junction as a nonlinear inductor, SQUIDs and sweet spots, from the Cooper-pair box to the transmon, flux qubits and fluxonium, and the materials, losses and frequency collisions that decide how well a chip works.' },
+  { code: 'cQED', title: 'Circuit quantum electrodynamics', blurb: 'Qubits and microwave photons on a chip: the Jaynes–Cummings model and vacuum Rabi splitting, the dispersive regime and photon-number splitting, coupling qubits with buses and tunable couplers for iSWAP and CZ, cross-resonance gates, and 3D cavities, Kerr dynamics and cat qubits.' }
+];
+const TRACK_PART = { QEC: 2, CMP: 2, ALG: 3, SIM: 3, VQA: 3, QIT: 3 };
+const GROUPS = STAGES.map(s => Object.assign({ part: 1, code: s.temp }, s)).concat(TRACKS.map(t => Object.assign({ part: TRACK_PART[t.code], temp: t.code }, t))).concat(TOOLKIT.map(t => Object.assign({ part: 0, temp: t.code }, t))).concat(HWTRACKS.map(t => Object.assign({ part: 2, temp: t.code }, t)));
+/* display order of groups: toolkit, core path, hardware (circuits → cQED → control → error correction), applications */
+const GROUP_ORDER = [11, 0, 1, 2, 3, 4, 12, 13, 8, 5, 6, 7, 9, 10];
+const GRANK = i => GROUP_ORDER.indexOf(i);
 const GORDER = GROUPS.map((g, i) => i).sort((a, b) => GRANK(a) - GRANK(b));
-const PART_LABEL = { 0: 'Part 1 · Math toolkit', 1: 'Part 2 · Core path', 2: 'Part 3 · Research tracks' };
-const PART_NO = { 0: 1, 1: 2, 2: 3 }, PART_OF_NO = { 1: 0, 2: 1, 3: 2 };
-const PART_NAME = { 0: 'Math toolkit', 1: 'Core path', 2: 'Research tracks' };
-const PART_SUB = { 0: 'Start with the math', 1: 'From 300 K to 10 mK', 2: 'Into current research' };
+const PARTS = [0, 1, 2, 3];
+const PART_LABEL = { 0: 'Part 1 · Math toolkit', 1: 'Part 2 · Core path', 2: 'Part 3 · Hardware and fault tolerance', 3: 'Part 4 · Algorithms and applications' };
+const PART_NO = { 0: 1, 1: 2, 2: 3, 3: 4 }, PART_OF_NO = { 1: 0, 2: 1, 3: 2, 4: 3 };
+const PART_NAME = { 0: 'Math toolkit', 1: 'Core path', 2: 'Hardware and fault tolerance', 3: 'Algorithms and applications' };
+const PART_SHORT = { 0: 'Math', 1: 'Core path', 2: 'Hardware', 3: 'Algorithms' };
+const PART_SUB = { 0: 'Start with the math', 1: 'From 300 K to 10 mK', 2: 'Build the machine, then keep it correct', 3: 'What to run on it, and what it means' };
 window.GLOSSARY = window.GLOSSARY.concat(window.GLOSSARY_EXTRA || []).sort((a, b) => a[0].localeCompare(b[0]));
 
 /* n is only a sort key inside a group; lessons are renumbered 1…N, and cross-references
@@ -16436,7 +17472,7 @@ const LAB_COUNT = MODULES.reduce((s, m) => s + m.labs, 0);
 const Q_COUNT = MODULES.reduce((s, m) => s + m.qs, 0);
 const pad2 = n => String(n).padStart(2, '0');
 const modTag = m => m.g.part === 1 ? m.g.temp : m.g.code;
-const modKind = m => m.g.part === 1 ? (m.g.name.includes(m.g.temp) ? m.g.name : `${m.g.temp} · ${m.g.name}`) : m.g.part === 2 ? 'Research track' : 'Math toolkit';
+const modKind = m => m.g.part === 1 ? (m.g.name.includes(m.g.temp) ? m.g.name : `${m.g.temp} · ${m.g.name}`) : m.g.part >= 2 ? 'Research track' : 'Math toolkit';
 function fmtDur(min) { const hh = Math.floor(min / 60), mm = min % 60; return hh ? `${hh} h${mm ? ' ' + mm + ' min' : ''}` : `${mm} min`; }
 const fmtInt = n => n.toLocaleString('en-US');
 
@@ -16529,7 +17565,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !drawer.hi
 function buildSide(m, cur) {
   const d = Prog.count(m.ls);
   const sel = h('select', { class: 'side-sel', 'aria-label': 'Switch module' },
-    ...[0, 1, 2].map(p => h('optgroup', { label: PART_LABEL[p] },
+    ...PARTS.map(p => h('optgroup', { label: PART_LABEL[p] },
       ...MODULES.filter(x => x.g.part === p).map(x => h('option', { value: String(x.no), selected: x === m }, `Module ${pad2(x.no)} · ${x.g.title}`)))));
   sel.addEventListener('change', () => { location.hash = 'module/' + sel.value; });
   return h('div', null,
@@ -16558,13 +17594,13 @@ function partLink(p) { return '#part/' + PART_NO[p]; }
 const partBarEl = document.getElementById('partBar');
 function setPartBar(cur) {
   partBarEl.innerHTML = '';
-  [0, 1, 2].forEach(p => {
+  PARTS.forEach(p => {
     const ms = MODULES.filter(m => m.g.part === p), nls = ms.reduce((s, m) => s + m.ls.length, 0);
     const done = ms.reduce((s, m) => s + Prog.count(m.ls), 0);
     partBarEl.append(h('a', { href: partLink(p), 'data-part': String(p), 'aria-current': cur === p ? 'true' : 'false',
       title: `${PART_LABEL[p]}: ${ms.length} module${ms.length > 1 ? 's' : ''}, ${nls} lessons, ${done} complete` },
       h('span', { class: 'pb-no' }, String(PART_NO[p])),
-      h('span', { class: 'pb-txt' }, h('small', null, `Part ${PART_NO[p]}`), h('b', null, PART_NAME[p])),
+      h('span', { class: 'pb-txt' }, h('small', null, `Part ${PART_NO[p]}`), h('b', { class: 'pb-long' }, PART_NAME[p]), h('b', { class: 'pb-short' }, PART_SHORT[p])),
       h('span', { class: 'pb-meta' }, `${ms.length} mod · ${nls} lessons`)));
   });
 }
@@ -16603,7 +17639,7 @@ function renderOverview(main) {
     h('div', null,
       h('span', { class: 'eyebrow' }, ico('book', 16), 'QSage Learn'),
       h('h1', null, 'Quantum computing, module by module'),
-      h('p', { class: 'ov-lede' }, 'Twelve modules that follow a quantum computer from room temperature down to ten millikelvin, then out into current research. Every lesson mixes live labs with a ten-question check, and every answer comes with its reasoning.'),
+      h('p', { class: 'ov-lede' }, `${['Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen'][MODULES.length - 12] || MODULES.length} modules in four parts that follow a quantum computer from room temperature down to ten millikelvin, then out into current research. Every lesson mixes live labs with a ten-question check, and every answer comes with its reasoning.`),
       h('div', { class: 'stats' },
         h('div', { class: 'stat' }, h('b', null, String(MODULES.length)), h('span', null, 'modules')),
         h('div', { class: 'stat' }, h('b', null, String(total)), h('span', null, 'lessons')),
@@ -16635,8 +17671,12 @@ function renderOverview(main) {
     descent));
 
   main.append(h('section', { class: 'part', id: 'part-3', 'aria-label': PART_LABEL[2] },
-    partHead(PART_LABEL[2], PART_SUB[2], 'Six tracks into where the field is working now. They assume the core path and use the same live labs, with the most room given to error correction and fault tolerance.'),
-    h('div', { class: 'mgrid tracks' }, ...byPart(2).map(modCard))));
+    partHead(PART_LABEL[2], PART_SUB[2], 'How superconducting qubits are built and wired together, how gates become microwave pulses, and how error correction turns noisy hardware into reliable logical qubits. Start with the circuits, then circuit QED, then the control stack and fault tolerance.'),
+    h('div', { class: 'mgrid quad' }, ...byPart(2).map(modCard))));
+
+  main.append(h('section', { class: 'part', id: 'part-4', 'aria-label': PART_LABEL[3] },
+    partHead(PART_LABEL[3], PART_SUB[3], 'Algorithms and their limits, how quantum systems are simulated, chemistry and machine learning on qubits, and the information theory and cryptography around it all. Each track assumes the core path and stands on its own.'),
+    h('div', { class: 'mgrid quad' }, ...byPart(3).map(modCard))));
 
   const legBloch = canvas('sq', 'max-width:150px'), lb = new BlochView(legBloch, { labels: 'min', drag: false, trail: false }); lb.set([S2 * .9, S2 * .9 * .3, .55]);
   const circ = h('div', { class: 'circ-wrap', style: 'background:var(--bg)' }); circ.append(drawCircuit(2, [[{ g: 'H', q: 0 }], [{ g: 'CX', c: 0, t: 1 }]], { cw: 60, aria: 'Example circuit' }).svg);
@@ -16654,7 +17694,7 @@ function renderOverview(main) {
       h('div', null, h('h3', null, 'Glossary'), h('p', null, `${window.GLOSSARY.length} short definitions, each linked to the lesson that explains it.`)),
       h('a', { class: 'btn', href: '#glossary' }, 'Open the glossary', ico('arrowR', 16)))));
 
-  const secs = [0, 1, 2].map(p => document.getElementById('part-' + PART_NO[p]));
+  const secs = PARTS.map(p => document.getElementById('part-' + PART_NO[p]));
   const onScroll = () => {
     const y = ((document.querySelector('.qs-top') || {}).offsetHeight || 118) + 60;
     let cur = -1; secs.forEach((s, p) => { if (s && s.getBoundingClientRect().top <= y) cur = p; });
@@ -16905,7 +17945,7 @@ function renderGlossary(main) {
 let firstRoute = true, lastView = '';
 function route() {
   const id = decodeURIComponent((location.hash || '').replace(/^#/, ''));
-  const partNo = /^part\/[123]$/.test(id) ? +id.slice(5) : 0;
+  const partNo = /^part\/[1-4]$/.test(id) ? +id.slice(5) : 0;
   if (partNo && lastView === 'overview') { scrollToPart(partNo); markPartBar(PART_OF_NO[partNo]); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
   const main = document.getElementById('main');
   if (spyOff) { spyOff(); spyOff = null; }

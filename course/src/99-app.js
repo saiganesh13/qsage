@@ -21,13 +21,23 @@ const TOOLKIT = [
   { code: 'LIN', title: 'Linear algebra for quantum computing', blurb: 'The mathematics underneath every lesson, built from scratch with pictures: vectors and Dirac notation, inner products and orthogonality, matrices as maps, eigenvalues and eigenvectors, Hermitian and unitary matrices, tensor products, outer products, projectors and the trace, matrix exponentials, and the singular value and Schmidt decompositions.' }
 ];
 /* Group indices: 0–4 core-path stages, 5–10 research tracks, 11 the math toolkit (shown first). */
-const GROUPS = STAGES.map(s => Object.assign({ part: 1, code: s.temp }, s)).concat(TRACKS.map(t => Object.assign({ part: 2, temp: t.code }, t))).concat(TOOLKIT.map(t => Object.assign({ part: 0, temp: t.code }, t)));
-const GRANK = i => GROUPS[i].part === 0 ? i - 100 : i;
+/* Hardware tracks are appended after the toolkit so existing group indices (used by lesson files) stay fixed. */
+const HWTRACKS = [
+  { code: 'SCQ', title: 'Superconducting circuits', blurb: 'How a circuit becomes a qubit: LC oscillators and flux quantization, the Josephson junction as a nonlinear inductor, SQUIDs and sweet spots, from the Cooper-pair box to the transmon, flux qubits and fluxonium, and the materials, losses and frequency collisions that decide how well a chip works.' },
+  { code: 'cQED', title: 'Circuit quantum electrodynamics', blurb: 'Qubits and microwave photons on a chip: the Jaynes–Cummings model and vacuum Rabi splitting, the dispersive regime and photon-number splitting, coupling qubits with buses and tunable couplers for iSWAP and CZ, cross-resonance gates, and 3D cavities, Kerr dynamics and cat qubits.' }
+];
+const TRACK_PART = { QEC: 2, CMP: 2, ALG: 3, SIM: 3, VQA: 3, QIT: 3 };
+const GROUPS = STAGES.map(s => Object.assign({ part: 1, code: s.temp }, s)).concat(TRACKS.map(t => Object.assign({ part: TRACK_PART[t.code], temp: t.code }, t))).concat(TOOLKIT.map(t => Object.assign({ part: 0, temp: t.code }, t))).concat(HWTRACKS.map(t => Object.assign({ part: 2, temp: t.code }, t)));
+/* display order of groups: toolkit, core path, hardware (circuits → cQED → control → error correction), applications */
+const GROUP_ORDER = [11, 0, 1, 2, 3, 4, 12, 13, 8, 5, 6, 7, 9, 10];
+const GRANK = i => GROUP_ORDER.indexOf(i);
 const GORDER = GROUPS.map((g, i) => i).sort((a, b) => GRANK(a) - GRANK(b));
-const PART_LABEL = { 0: 'Part 1 · Math toolkit', 1: 'Part 2 · Core path', 2: 'Part 3 · Research tracks' };
-const PART_NO = { 0: 1, 1: 2, 2: 3 }, PART_OF_NO = { 1: 0, 2: 1, 3: 2 };
-const PART_NAME = { 0: 'Math toolkit', 1: 'Core path', 2: 'Research tracks' };
-const PART_SUB = { 0: 'Start with the math', 1: 'From 300 K to 10 mK', 2: 'Into current research' };
+const PARTS = [0, 1, 2, 3];
+const PART_LABEL = { 0: 'Part 1 · Math toolkit', 1: 'Part 2 · Core path', 2: 'Part 3 · Hardware and fault tolerance', 3: 'Part 4 · Algorithms and applications' };
+const PART_NO = { 0: 1, 1: 2, 2: 3, 3: 4 }, PART_OF_NO = { 1: 0, 2: 1, 3: 2, 4: 3 };
+const PART_NAME = { 0: 'Math toolkit', 1: 'Core path', 2: 'Hardware and fault tolerance', 3: 'Algorithms and applications' };
+const PART_SHORT = { 0: 'Math', 1: 'Core path', 2: 'Hardware', 3: 'Algorithms' };
+const PART_SUB = { 0: 'Start with the math', 1: 'From 300 K to 10 mK', 2: 'Build the machine, then keep it correct', 3: 'What to run on it, and what it means' };
 window.GLOSSARY = window.GLOSSARY.concat(window.GLOSSARY_EXTRA || []).sort((a, b) => a[0].localeCompare(b[0]));
 
 /* n is only a sort key inside a group; lessons are renumbered 1…N, and cross-references
@@ -62,7 +72,7 @@ const LAB_COUNT = MODULES.reduce((s, m) => s + m.labs, 0);
 const Q_COUNT = MODULES.reduce((s, m) => s + m.qs, 0);
 const pad2 = n => String(n).padStart(2, '0');
 const modTag = m => m.g.part === 1 ? m.g.temp : m.g.code;
-const modKind = m => m.g.part === 1 ? (m.g.name.includes(m.g.temp) ? m.g.name : `${m.g.temp} · ${m.g.name}`) : m.g.part === 2 ? 'Research track' : 'Math toolkit';
+const modKind = m => m.g.part === 1 ? (m.g.name.includes(m.g.temp) ? m.g.name : `${m.g.temp} · ${m.g.name}`) : m.g.part >= 2 ? 'Research track' : 'Math toolkit';
 function fmtDur(min) { const hh = Math.floor(min / 60), mm = min % 60; return hh ? `${hh} h${mm ? ' ' + mm + ' min' : ''}` : `${mm} min`; }
 const fmtInt = n => n.toLocaleString('en-US');
 
@@ -155,7 +165,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !drawer.hi
 function buildSide(m, cur) {
   const d = Prog.count(m.ls);
   const sel = h('select', { class: 'side-sel', 'aria-label': 'Switch module' },
-    ...[0, 1, 2].map(p => h('optgroup', { label: PART_LABEL[p] },
+    ...PARTS.map(p => h('optgroup', { label: PART_LABEL[p] },
       ...MODULES.filter(x => x.g.part === p).map(x => h('option', { value: String(x.no), selected: x === m }, `Module ${pad2(x.no)} · ${x.g.title}`)))));
   sel.addEventListener('change', () => { location.hash = 'module/' + sel.value; });
   return h('div', null,
@@ -184,13 +194,13 @@ function partLink(p) { return '#part/' + PART_NO[p]; }
 const partBarEl = document.getElementById('partBar');
 function setPartBar(cur) {
   partBarEl.innerHTML = '';
-  [0, 1, 2].forEach(p => {
+  PARTS.forEach(p => {
     const ms = MODULES.filter(m => m.g.part === p), nls = ms.reduce((s, m) => s + m.ls.length, 0);
     const done = ms.reduce((s, m) => s + Prog.count(m.ls), 0);
     partBarEl.append(h('a', { href: partLink(p), 'data-part': String(p), 'aria-current': cur === p ? 'true' : 'false',
       title: `${PART_LABEL[p]}: ${ms.length} module${ms.length > 1 ? 's' : ''}, ${nls} lessons, ${done} complete` },
       h('span', { class: 'pb-no' }, String(PART_NO[p])),
-      h('span', { class: 'pb-txt' }, h('small', null, `Part ${PART_NO[p]}`), h('b', null, PART_NAME[p])),
+      h('span', { class: 'pb-txt' }, h('small', null, `Part ${PART_NO[p]}`), h('b', { class: 'pb-long' }, PART_NAME[p]), h('b', { class: 'pb-short' }, PART_SHORT[p])),
       h('span', { class: 'pb-meta' }, `${ms.length} mod · ${nls} lessons`)));
   });
 }
@@ -229,7 +239,7 @@ function renderOverview(main) {
     h('div', null,
       h('span', { class: 'eyebrow' }, ico('book', 16), 'QSage Learn'),
       h('h1', null, 'Quantum computing, module by module'),
-      h('p', { class: 'ov-lede' }, 'Twelve modules that follow a quantum computer from room temperature down to ten millikelvin, then out into current research. Every lesson mixes live labs with a ten-question check, and every answer comes with its reasoning.'),
+      h('p', { class: 'ov-lede' }, `${['Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen'][MODULES.length - 12] || MODULES.length} modules in four parts that follow a quantum computer from room temperature down to ten millikelvin, then out into current research. Every lesson mixes live labs with a ten-question check, and every answer comes with its reasoning.`),
       h('div', { class: 'stats' },
         h('div', { class: 'stat' }, h('b', null, String(MODULES.length)), h('span', null, 'modules')),
         h('div', { class: 'stat' }, h('b', null, String(total)), h('span', null, 'lessons')),
@@ -261,8 +271,12 @@ function renderOverview(main) {
     descent));
 
   main.append(h('section', { class: 'part', id: 'part-3', 'aria-label': PART_LABEL[2] },
-    partHead(PART_LABEL[2], PART_SUB[2], 'Six tracks into where the field is working now. They assume the core path and use the same live labs, with the most room given to error correction and fault tolerance.'),
-    h('div', { class: 'mgrid tracks' }, ...byPart(2).map(modCard))));
+    partHead(PART_LABEL[2], PART_SUB[2], 'How superconducting qubits are built and wired together, how gates become microwave pulses, and how error correction turns noisy hardware into reliable logical qubits. Start with the circuits, then circuit QED, then the control stack and fault tolerance.'),
+    h('div', { class: 'mgrid quad' }, ...byPart(2).map(modCard))));
+
+  main.append(h('section', { class: 'part', id: 'part-4', 'aria-label': PART_LABEL[3] },
+    partHead(PART_LABEL[3], PART_SUB[3], 'Algorithms and their limits, how quantum systems are simulated, chemistry and machine learning on qubits, and the information theory and cryptography around it all. Each track assumes the core path and stands on its own.'),
+    h('div', { class: 'mgrid quad' }, ...byPart(3).map(modCard))));
 
   const legBloch = canvas('sq', 'max-width:150px'), lb = new BlochView(legBloch, { labels: 'min', drag: false, trail: false }); lb.set([S2 * .9, S2 * .9 * .3, .55]);
   const circ = h('div', { class: 'circ-wrap', style: 'background:var(--bg)' }); circ.append(drawCircuit(2, [[{ g: 'H', q: 0 }], [{ g: 'CX', c: 0, t: 1 }]], { cw: 60, aria: 'Example circuit' }).svg);
@@ -280,7 +294,7 @@ function renderOverview(main) {
       h('div', null, h('h3', null, 'Glossary'), h('p', null, `${window.GLOSSARY.length} short definitions, each linked to the lesson that explains it.`)),
       h('a', { class: 'btn', href: '#glossary' }, 'Open the glossary', ico('arrowR', 16)))));
 
-  const secs = [0, 1, 2].map(p => document.getElementById('part-' + PART_NO[p]));
+  const secs = PARTS.map(p => document.getElementById('part-' + PART_NO[p]));
   const onScroll = () => {
     const y = ((document.querySelector('.qs-top') || {}).offsetHeight || 118) + 60;
     let cur = -1; secs.forEach((s, p) => { if (s && s.getBoundingClientRect().top <= y) cur = p; });
@@ -531,7 +545,7 @@ function renderGlossary(main) {
 let firstRoute = true, lastView = '';
 function route() {
   const id = decodeURIComponent((location.hash || '').replace(/^#/, ''));
-  const partNo = /^part\/[123]$/.test(id) ? +id.slice(5) : 0;
+  const partNo = /^part\/[1-4]$/.test(id) ? +id.slice(5) : 0;
   if (partNo && lastView === 'overview') { scrollToPart(partNo); markPartBar(PART_OF_NO[partNo]); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
   const main = document.getElementById('main');
   if (spyOff) { spyOff(); spyOff = null; }

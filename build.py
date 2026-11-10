@@ -48,10 +48,10 @@ def build() -> Path:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Learn · QSage</title>
-<meta name="description" content="QSage Learn: an interactive quantum computing course in twelve modules, with live labs and a ten-question check after every lesson.">
+<meta name="description" content="QSage Learn: an interactive quantum computing course in fourteen modules and four parts, with live labs and a ten-question check after every lesson.">
 <meta name="author" content="Sai Ganesh Chidambaram">
 <meta property="og:title" content="Learn quantum computing · QSage">
-<meta property="og:description" content="Twelve modules from the first qubit to fault-tolerant machines, with live labs and explained answers.">
+<meta property="og:description" content="Fourteen modules from the first qubit to superconducting hardware and fault-tolerant machines, with live labs and explained answers.">
 <meta property="og:type" content="website">
 <link rel="icon" href="{FAVICON}">
 {THEME_INIT}
