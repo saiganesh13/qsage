@@ -58,6 +58,17 @@ The user hosts QMount on their own domain with Hostinger. Claude cannot log in t
   `qmount-hostinger.zip` is git-ignored; never commit it.
 - `.htaccess` must stay at the site root: it blocks `course/`, `.md`, `.py` and `.git` paths when the whole repository is deployed.
 
+## Task: update the personal portfolio copy
+
+A second copy of the site is published as Sai Ganesh Chidambaram's personal quantum computing learning portfolio (no QMount brand, no company wording, no Buy Me a Coffee): repository `saiganesh13/quantum-portfolio`, live at `https://saiganesh13.github.io/quantum-portfolio/`. It is generated, never edited by hand:
+
+```bash
+python build.py && python portfolio.py
+cd portfolio-site && git add -A && git commit -m "<what changed>" && git push
+```
+
+`portfolio-site/` is its own git checkout of that repository and is ignored here. If `portfolio.py` stops with "expected … found 0", a phrase it rewrites was changed in `index.html` or the course; update the matching line in `portfolio.py`.
+
 ## Rules
 
 - Never edit `learn.html` by hand; change `course/` and rebuild.
