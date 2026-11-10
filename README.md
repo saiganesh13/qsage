@@ -1,6 +1,6 @@
-# QSage
+# QMount
 
-The QSage website: a home page and an interactive quantum computing course, written by **Sai Ganesh Chidambaram**.
+The QMount website: a home page and an interactive quantum computing course, written by **Sai Ganesh Chidambaram**.
 
 | Page | What it is |
 | --- | --- |
@@ -31,6 +31,14 @@ Open `index.html` in any modern browser. The home page's 3D model loads three.js
 
 The empty `.nojekyll` file tells GitHub Pages to serve the files as they are.
 
+## Publish on Hostinger (your own domain)
+
+The site is just two files, `index.html` and `learn.html`, plus `.htaccess`. Either way below, first open **hPanel → Websites → your domain** and make sure the free **SSL** certificate is active, then turn on **Force HTTPS** (hPanel → Security → SSL).
+
+**Option A · Upload the files (simplest).** Run `python build.py`, then upload the three files (or `qmount-hostinger.zip`, then **Extract**) to `public_html` with **hPanel → Files → File Manager**. Delete Hostinger's default `default.php` or `index.php` there if present. Repeat the upload whenever the site changes.
+
+**Option B · Deploy from GitHub (updates itself).** In **hPanel → Advanced → Git**, add the repository `https://github.com/saiganesh13/qsage.git`, branch `main`, and leave the install directory empty so it deploys into `public_html` (which must be empty first). Press **Deploy**, then turn on **Auto deployment** and add the webhook URL it shows to the GitHub repository (**Settings → Webhooks → Add webhook**, content type `application/json`). From then on every `git push` updates the domain. `.htaccess` keeps `course/`, the notes and the build script private.
+
 ## Publish it with Claude Code
 
 Open this folder in Claude Code and ask it to publish the site to GitHub Pages. `CLAUDE.md` gives it the exact steps: it checks git and the GitHub CLI, confirms the repository name with you, pushes the site and turns on Pages.
@@ -47,7 +55,7 @@ python build.py
 | --- | --- |
 | `course/qs-tokens.css` | Colours for both themes, fonts |
 | `course/lab.css` | Styles for lesson content and labs |
-| `course/qs-ui.css` | QSage navigation, overview, module pages, lesson layout and the quiz |
+| `course/qs-ui.css` | QMount navigation, overview, module pages, lesson layout and the quiz |
 | `course/body.html` | Page shell: top bar, side panel, footer, mobile drawer |
 | `course/src/01-engine.js`, `07-…`, `15-…` | Simulation engine, drawing and UI helpers |
 | `course/src/02`–`43` | Lessons, labs, quiz questions and glossary (`42` superconducting circuits, `43` circuit QED) |
@@ -55,4 +63,4 @@ python build.py
 
 Each lesson's `n` field is only a sort key within its module; lessons are renumbered when the page loads. Cross-references are written as `[[L:lesson-id]]`.
 
-© 2026 QSage · Course written by Sai Ganesh Chidambaram
+© 2026 QMount · Course written by Sai Ganesh Chidambaram

@@ -1,5 +1,5 @@
 /* =====================================================================
-   QSage Learn · shell, overview, modules, lessons, quiz
+   QMount Learn · shell, overview, modules, lessons, quiz
    (loaded after the lab styles, so these rules win)
    ===================================================================== */
 .skip{position:absolute;left:-9999px;top:8px;z-index:60;background:var(--surface);color:var(--head);padding:10px 16px;border-radius:12px}

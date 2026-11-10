@@ -1,0 +1,23 @@
+# QMount on Hostinger (LiteSpeed / Apache)
+DirectoryIndex index.html
+Options -Indexes
+
+# Only the two pages are public. If the whole repository is deployed with
+# Hostinger's Git tool, keep the course sources, notes and git data private.
+RewriteEngine On
+RewriteRule (^|/)(course/|\.git) - [F,L,NC]
+RewriteRule \.(md|py|zip)$ - [F,L,NC]
+
+# Compress text
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml
+</IfModule>
+
+# Always check for a fresh page, so updates show up straight away
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

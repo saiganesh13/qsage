@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   QSage Learn · core engine
+   QMount Learn · core engine
    Simulation, drawing primitives and UI helpers shared by every lesson.
    ===================================================================== */
 const TAU = Math.PI * 2, S2 = Math.SQRT1_2, PI = Math.PI;

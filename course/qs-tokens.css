@@ -1,7 +1,7 @@
 /* =====================================================================
-   QSage Learn · design tokens and base
+   QMount Learn · design tokens and base
    Lab colours keep their names (--copper, --cyan) because lesson text
-   refers to "the copper arrow" and "the cyan line"; QSage UI uses --brand.
+   refers to "the copper arrow" and "the cyan line"; QMount UI uses --brand.
    ===================================================================== */
 :root{
   --f-display:"Space Grotesk","Inter",system-ui,sans-serif;

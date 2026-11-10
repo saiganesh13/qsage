@@ -1,5 +1,5 @@
 /* =====================================================================
-   QSage Learn · app shell
+   QMount Learn · app shell
    Modules, routing, overview, module pages, lessons, quiz, glossary
    ===================================================================== */
 const STAGES = [
@@ -78,9 +78,9 @@ const fmtInt = n => n.toLocaleString('en-US');
 
 /* ---------- progress (stored only in this browser) ---------- */
 const Prog = {
-  key: 'qsage-progress-v1', d: { seen: {}, done: {}, best: {}, notes: {}, last: null },
+  key: 'qmount-progress-v1', oldKey: 'qsage-progress-v1', d: { seen: {}, done: {}, best: {}, notes: {}, last: null },
   load() {
-    try { const s = localStorage.getItem(this.key); if (s) { const o = JSON.parse(s); this.d = { seen: o.seen || {}, done: o.done || {}, best: o.best || {}, notes: o.notes || {}, last: o.last || null }; } }
+    try { const s = localStorage.getItem(this.key) || localStorage.getItem(this.oldKey); if (s) { const o = JSON.parse(s); this.d = { seen: o.seen || {}, done: o.done || {}, best: o.best || {}, notes: o.notes || {}, last: o.last || null }; } }
     catch (e) { /* storage unavailable */ }
   },
   save() { try { localStorage.setItem(this.key, JSON.stringify(this.d)); } catch (e) { /* storage unavailable */ } },
@@ -150,7 +150,7 @@ function scrollToEl(el) { if (el) el.scrollIntoView({ block: 'start', behavior: 
 document.getElementById('themeBtn').addEventListener('click', () => {
   const root = document.documentElement, next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
   root.setAttribute('data-theme', next);
-  try { localStorage.setItem('qsage-theme', next); } catch (e) { /* storage unavailable */ }
+  try { localStorage.setItem('qmount-theme', next); } catch (e) { /* storage unavailable */ }
 });
 
 /* ---------- side panel + drawer ---------- */
@@ -237,7 +237,7 @@ function renderOverview(main) {
 
   main.append(h('section', { class: 'ov-hero' },
     h('div', null,
-      h('span', { class: 'eyebrow' }, ico('book', 16), 'QSage Learn'),
+      h('span', { class: 'eyebrow' }, ico('book', 16), 'QMount Learn'),
       h('h1', null, 'Quantum computing, module by module'),
       h('p', { class: 'ov-lede' }, `${['Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen'][MODULES.length - 12] || MODULES.length} modules in four parts that follow a quantum computer from room temperature down to ten millikelvin, then out into current research. Every lesson mixes live labs with a ten-question check, and every answer comes with its reasoning.`),
       h('div', { class: 'stats' },
@@ -546,7 +546,7 @@ let firstRoute = true, lastView = '';
 function route() {
   const id = decodeURIComponent((location.hash || '').replace(/^#/, ''));
   const partNo = /^part\/[1-4]$/.test(id) ? +id.slice(5) : 0;
-  if (partNo && lastView === 'overview') { scrollToPart(partNo); markPartBar(PART_OF_NO[partNo]); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
+  if (partNo && lastView === 'overview') { scrollToPart(partNo); markPartBar(PART_OF_NO[partNo]); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QMount`; return; }
   const main = document.getElementById('main');
   if (spyOff) { spyOff(); spyOff = null; }
   Scope.reset(); main.innerHTML = '';
@@ -559,7 +559,7 @@ function route() {
   lastView = L ? 'lesson' : id.startsWith('module/') ? 'module' : id === 'glossary' ? 'glossary' : 'overview';
   const curPart = L ? MOD_OF[L.id].g.part : lastView === 'module' ? MODULES[+id.slice(7) - 1].g.part : partNo ? PART_OF_NO[partNo] : -1;
   setPartBar(curPart);
-  document.title = `${title} · QSage`;
+  document.title = `${title} · QMount`;
   closeDrawer();
   if (partNo) requestAnimationFrame(() => { window.scrollTo(0, 0); scrollToPart(partNo); });
   else if (!firstRoute) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }

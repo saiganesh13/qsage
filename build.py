@@ -1,4 +1,4 @@
-"""Build learn.html (the QSage course) from the files in course/.
+"""Build learn.html (the QMount course) from the files in course/.
 
 Usage:  python build.py
 
@@ -23,7 +23,7 @@ FAVICON = (
 THEME_INIT = """<script>
 (function () {
   var t = null;
-  try { t = localStorage.getItem('qsage-theme'); } catch (e) {}
+  try { t = (localStorage.getItem('qmount-theme') || localStorage.getItem('qsage-theme')); } catch (e) {}
   if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', t);
 })();
@@ -47,10 +47,10 @@ def build() -> Path:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Learn · QSage</title>
-<meta name="description" content="QSage Learn: an interactive quantum computing course in fourteen modules and four parts, with live labs and a ten-question check after every lesson.">
+<title>Learn · QMount</title>
+<meta name="description" content="QMount Learn: an interactive quantum computing course in fourteen modules and four parts, with live labs and a ten-question check after every lesson.">
 <meta name="author" content="Sai Ganesh Chidambaram">
-<meta property="og:title" content="Learn quantum computing · QSage">
+<meta property="og:title" content="Learn quantum computing · QMount">
 <meta property="og:description" content="Fourteen modules from the first qubit to superconducting hardware and fault-tolerant machines, with live labs and explained answers.">
 <meta property="og:type" content="website">
 <link rel="icon" href="{FAVICON}">
