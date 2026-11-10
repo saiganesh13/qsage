@@ -441,3 +441,41 @@ kbd{font:600 11.5px var(--f-mono);padding:3px 7px;border-radius:7px;border:1px s
   .jump{flex-wrap:nowrap;gap:2px;overflow-x:auto;scrollbar-width:none}
   .jump button{padding:8px 10px;flex:none}
 }
+
+/* ---------- phones ---------- */
+@media (max-width:560px){
+  .logo span{display:inline;font-size:18px}
+  .logo svg{flex:none}
+  .qs-top-in{gap:8px;display:flex;justify-content:space-between;padding:0 14px}
+  .qs-tabs a{padding:8px 13px;font-size:13.5px}
+  .icon-btn{width:40px;height:40px}
+  .ov-hero{padding-top:24px;gap:24px}
+  .ov-hero h1{font-size:36px;margin:10px 0 12px}
+  .ov-lede{font-size:16px}
+  .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:18px}
+  .stat{padding:10px 8px;border-radius:14px;text-align:center}
+  .stat b{font-size:19px}
+  .stat span{font-size:11px}
+  .resume{gap:12px;padding:14px}
+  .part{padding-top:44px}
+  .part-head{margin-bottom:18px;gap:10px}
+  .part-head h2{font-size:28px}
+  .part-head p{font-size:15px}
+  .mcard{padding:18px;border-radius:20px;gap:10px}
+  .mcard h3{font-size:20px}
+  .dsc{grid-template-columns:minmax(0,1fr)}
+  .dsc-temp,.dsc-rail{display:none}
+  .dsc .mcard{margin-bottom:12px}
+  .mhero{padding:20px;border-radius:22px}
+  .step{gap:12px;padding:14px;border-radius:16px}
+  .lh h1{font-size:32px}
+  .lab-body{padding:14px}
+  .lab-head{padding:12px 14px}
+  .lab-cap{padding:12px 14px 14px;font-size:14px}
+  .ideas{padding:18px;border-radius:20px}
+  .qz-card,.qz-res{padding:18px;border-radius:20px;gap:14px}
+  .qz-opt{min-height:54px;padding:10px 12px 10px 10px;gap:10px;font-size:15px;grid-template-columns:32px minmax(0,1fr) 20px}
+  .qz-letter{width:32px;height:32px;border-radius:10px}
+  .qz-q{font-size:18px}
+  .pn a{padding:16px}
+}

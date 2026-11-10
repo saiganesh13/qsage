@@ -4,7 +4,7 @@ The QMount website: a home page and an interactive quantum computing course, wri
 
 | Page | What it is |
 | --- | --- |
-| `index.html` | **Home** — the landing page, with the animated 3D quantum computer, course structure, founder and FAQ |
+| `index.html` | **Home** — the landing page, with the animated 3D quantum computer, course structure, author and FAQ |
 | `learn.html` | **Learn** — the course: 14 modules in four parts, 141 lessons, 226 live labs and 1,410 questions with explained answers |
 
 Both pages share the same navigation (Home · Learn) and the same dark and light themes. The visitor's theme choice is remembered between the two pages.

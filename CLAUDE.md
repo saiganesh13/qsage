@@ -2,7 +2,7 @@
 
 This folder is the QMount website: a static site with no server code and no dependencies to install.
 
-- `index.html` — **Home**, the landing page (3D quantum computer via three.js from cdnjs, founder section, FAQ). Hand-edited, not generated.
+- `index.html` — **Home**, the landing page (3D quantum computer via three.js from cdnjs, author section, FAQ). Hand-edited, not generated.
 - `learn.html` — **Learn**, the course (14 modules in four parts, 141 lessons, 226 labs, 1,410 questions). **Generated** — never edit it directly.
 - `course/` — the sources for `learn.html`: `qs-tokens.css`, `lab.css`, `qs-ui.css`, `body.html`, and the lesson/engine/app scripts in `course/src/` (concatenated in filename order).
 - `build.py` — rebuilds `learn.html` from `course/`. Run `python build.py` (on Windows, `py build.py` may be needed).
