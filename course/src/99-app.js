@@ -160,7 +160,6 @@ function buildSide(m, cur) {
   sel.addEventListener('change', () => { location.hash = 'module/' + sel.value; });
   return h('div', null,
     h('a', { class: 'side-back', href: '#' }, ico('grid', 16), 'All modules'),
-    partNav(m.g.part, true),
     sel,
     h('div', { class: 'side-mod' },
       h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', { class: 'mcard-no' }, `Module ${pad2(m.no)}`), h('span', { class: 'tag' }, modTag(m))),
@@ -182,17 +181,20 @@ function setSide(m, cur) {
 
 /* ---------- part navigation (Part 1 · 2 · 3) ---------- */
 function partLink(p) { return '#part/' + PART_NO[p]; }
-function partNav(cur, compact) {
-  return h('nav', { class: 'partnav' + (compact ? ' compact' : ''), 'aria-label': 'Course parts' }, ...[0, 1, 2].map(p => {
+const partBarEl = document.getElementById('partBar');
+function setPartBar(cur) {
+  partBarEl.innerHTML = '';
+  [0, 1, 2].forEach(p => {
     const ms = MODULES.filter(m => m.g.part === p), nls = ms.reduce((s, m) => s + m.ls.length, 0);
     const done = ms.reduce((s, m) => s + Prog.count(m.ls), 0);
-    return h('a', { href: partLink(p), 'data-part': String(p), 'aria-current': cur === p ? 'true' : 'false' },
-      h('small', null, `Part ${PART_NO[p]}`),
-      h('b', null, PART_NAME[p]),
-      compact ? null : h('span', { class: 'pn-meta' }, `${ms.length} module${ms.length > 1 ? 's' : ''} · ${nls} lessons`),
-      compact ? null : h('span', { class: 'pbar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.round(done / nls * 100)}%` })));
-  }));
+    partBarEl.append(h('a', { href: partLink(p), 'data-part': String(p), 'aria-current': cur === p ? 'true' : 'false',
+      title: `${PART_LABEL[p]}: ${ms.length} module${ms.length > 1 ? 's' : ''}, ${nls} lessons, ${done} complete` },
+      h('span', { class: 'pb-no' }, String(PART_NO[p])),
+      h('span', { class: 'pb-txt' }, h('small', null, `Part ${PART_NO[p]}`), h('b', null, PART_NAME[p])),
+      h('span', { class: 'pb-meta' }, `${ms.length} mod · ${nls} lessons`)));
+  });
 }
+function markPartBar(cur) { partBarEl.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', String(+a.dataset.part === cur))); }
 
 /* ---------- overview ---------- */
 function modCard(m) {
@@ -245,8 +247,6 @@ function renderOverview(main) {
   const partHead = (eyebrow, title, text) => h('div', { class: 'part-head' }, h('div', null, h('span', { class: 'eyebrow' }, eyebrow), h('h2', null, title)), h('p', null, text));
   const byPart = p => MODULES.filter(m => m.g.part === p);
 
-  const pnav = partNav(-1);
-  main.append(h('div', { class: 'partnav-wrap' }, pnav));
   main.append(h('section', { class: 'part', id: 'part-1', 'aria-label': PART_LABEL[0] },
     partHead(PART_LABEL[0], PART_SUB[0], 'Linear algebra is the language of quantum computing. If vectors, matrices or tensor products feel rusty, begin here. If not, skip ahead and come back when you need a refresher.'),
     h('div', { class: 'mgrid' }, ...byPart(0).map(m => { const c = modCard(m); c.classList.add('feat'); return c; }))));
@@ -282,16 +282,16 @@ function renderOverview(main) {
 
   const secs = [0, 1, 2].map(p => document.getElementById('part-' + PART_NO[p]));
   const onScroll = () => {
-    const y = ((document.querySelector('.qs-top') || {}).offsetHeight || 68) + 140;
+    const y = ((document.querySelector('.qs-top') || {}).offsetHeight || 118) + 60;
     let cur = -1; secs.forEach((s, p) => { if (s && s.getBoundingClientRect().top <= y) cur = p; });
-    pnav.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', String(+a.dataset.part === cur)));
+    markPartBar(cur);
   };
   window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
   spyOff = () => window.removeEventListener('scroll', onScroll);
 }
 function scrollToPart(n) {
   const el = document.getElementById('part-' + n); if (!el) return;
-  const off = ((document.querySelector('.qs-top') || {}).offsetHeight || 68) + 96;
+  const off = ((document.querySelector('.qs-top') || {}).offsetHeight || 118) + 16;
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
@@ -391,26 +391,27 @@ function renderLesson(L, main) {
   Scope.later(50, onScroll);
 }
 
-/* ---------- quiz: one question at a time, with room for reasoning ---------- */
+/* ---------- quiz: every question on one scrolling page, with room for reasoning ---------- */
 function renderQuiz(L) {
   const n = L.quiz.length, need = Math.ceil(n * 0.7), letters = 'ABCDEF';
-  const items = L.quiz.map(q => ({ q, order: shuffle(q.o.map((_, i) => i)), sel: null, picked: null }));
-  let cur = 0, results = false, recorded = false;
+  const items = L.quiz.map(q => ({ q, order: shuffle(q.o.map((_, i) => i)), sel: null, picked: null, el: null }));
+  let recorded = false;
   const uid = 'qz-' + L.id;
   const sec = h('section', { class: 'qz', id: 'check', 'aria-labelledby': uid + '-title' });
   const scoreEl = h('div', { class: 'qz-score', 'aria-live': 'polite' });
-  const dots = h('ol', { class: 'qz-dots', 'aria-label': 'Questions' });
-  const stage = h('div');
+  const progEl = h('div', { class: 'qz-sticky' });
+  const list = h('ol', { class: 'qz-list' });
+  const resBox = h('div', { class: 'qz-res-wrap' });
   const right = () => items.filter(it => it.picked !== null && it.picked === it.q.a).length;
   const answered = () => items.filter(it => it.picked !== null).length;
-  const nextOpen = from => { for (let k = 1; k <= n; k++) { const j = (from + k) % n; if (items[j].picked === null) return j; } return -1; };
+  const nextOpen = from => { for (let j = from + 1; j < n; j++) if (items[j].picked === null) return j; for (let j = 0; j < from; j++) if (items[j].picked === null) return j; return -1; };
 
   sec.append(h('div', { class: 'qz-head' },
     h('div', null, h('span', { class: 'eyebrow' }, ico('quiz', 16), 'Check yourself'), h('h2', { id: uid + '-title' }, `${n} questions on this lesson`),
-      h('p', null, `Pick an answer, write down your reasoning if it helps, then check it and read the explanation. Get ${need} of ${n} right on the first try to complete the lesson.`)),
+      h('p', null, `Scroll through the questions at your own pace. Pick an answer, check it, and the explanation opens right below. Get ${need} of ${n} right on the first try to complete the lesson.`)),
     scoreEl));
   if (Prog.d.done[L.id]) sec.append(h('p', { class: 'qz-done' }, ico('check', 18), 'You have completed this lesson. Retaking the check will not undo that.'));
-  sec.append(dots, stage);
+  sec.append(progEl, list, resBox);
 
   function finalize() {
     if (recorded || answered() < n) return;
@@ -419,30 +420,21 @@ function renderQuiz(L) {
     if (s >= need) Prog.done(L.id);
     const m = MOD_OF[L.id]; setSide(m, L);
   }
-  function paint(focusSel) {
+  function paintScore() {
     scoreEl.innerHTML = '';
     scoreEl.append(h('span', null, h('b', null, String(right())), ' correct'), h('span', null, h('b', null, `${answered()}/${n}`), ' answered'));
-    dots.innerHTML = '';
-    items.forEach((it, i) => {
-      const s = it.picked === null ? '' : it.picked === it.q.a ? 'right' : 'wrong';
-      dots.append(h('li', null, h('button', { type: 'button', class: 'qz-dot', 'data-s': s, 'aria-current': !results && i === cur ? 'step' : false,
-        'aria-label': `Question ${i + 1}${s === 'right' ? ', correct' : s === 'wrong' ? ', incorrect' : ''}`,
-        onclick: () => { results = false; cur = i; paint('.qz-card'); } }, String(i + 1))));
-    });
-    if (answered() === n) dots.append(h('li', null, h('button', { type: 'button', class: 'qz-dot res', 'aria-current': results ? 'step' : false, onclick: () => { results = true; paint('.qz-res'); } }, ico('flag', 15), 'Results')));
-    stage.innerHTML = '';
-    stage.append(results ? resultsView() : cardView());
-    if (focusSel) { const el = stage.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
+    progEl.innerHTML = '';
+    progEl.append(h('span', null, `${answered()} of ${n} answered`), pbar(answered() / n, `${answered()} of ${n} answered`), h('span', null, h('b', null, String(right())), ' correct'));
   }
-  function check() {
-    const it = items[cur]; if (it.sel === null || it.picked !== null) return;
-    it.picked = it.sel; finalize(); paint('.qz-fb');
+  function check(i) {
+    const it = items[i]; if (it.sel === null || it.picked !== null) return;
+    it.picked = it.sel; finalize(); paintCard(i, '.qz-fb'); paintScore(); paintResults();
   }
-  function cardView() {
-    const it = items[cur], q = it.q, checked = it.picked !== null, qid = `${uid}-q${cur}`;
-    const card = h('div', { class: 'qz-card', tabindex: '-1', 'aria-labelledby': qid });
-    card.append(h('div', { class: 'qz-card-top' }, h('span', { class: 'qz-count' }, `Question ${cur + 1} of ${n}`),
-      h('span', { class: 'qz-prog' }, pbar(answered() / n, `${answered()} of ${n} answered`))));
+  function paintCard(i, focusSel) {
+    const it = items[i], q = it.q, checked = it.picked !== null, qid = `${uid}-q${i}`;
+    const card = h('article', { class: 'qz-card' + (checked ? (it.picked === q.a ? ' is-right' : ' is-wrong') : ''), tabindex: '-1', 'aria-labelledby': qid, 'data-i': String(i) });
+    card.append(h('div', { class: 'qz-card-top' }, h('span', { class: 'qz-num' }, String(i + 1)), h('span', { class: 'qz-count' }, `Question ${i + 1} of ${n}`),
+      checked ? h('span', { class: 'qz-badge ' + (it.picked === q.a ? 'good' : 'bad') }, ico(it.picked === q.a ? 'check' : 'x', 14), it.picked === q.a ? 'Correct' : 'Incorrect') : null));
     card.append(h('p', { class: 'qz-q', id: qid }, q.q));
     const opts = h('div', { class: 'qz-opts', role: 'radiogroup', 'aria-labelledby': qid });
     it.order.forEach((oi, k) => {
@@ -452,23 +444,24 @@ function renderQuiz(L) {
       const b = h('button', { type: 'button', class: 'qz-opt', role: 'radio', 'data-s': s, 'data-k': String(k),
         'aria-checked': (checked ? oi === it.picked : it.sel === oi) ? 'true' : 'false', 'aria-disabled': checked ? 'true' : null },
         h('span', { class: 'qz-letter' }, letters[k]), h('span', null, q.o[oi]), s === 'right' ? ico('check', 20) : s === 'wrong' ? ico('x', 20) : h('span'));
-      if (!checked) b.addEventListener('click', () => { it.sel = oi; paint(`.qz-opt[data-k="${k}"]`); });
+      if (!checked) b.addEventListener('click', () => { it.sel = oi; paintCard(i, `.qz-opt[data-k="${k}"]`); });
       else b.disabled = true;
       opts.append(b);
     });
     card.append(opts);
-    const mine = Prog.note(L.id, cur);
+    const mine = Prog.note(L.id, i);
     if (!checked) {
-      const taId = `${uid}-ta${cur}`;
-      const ta = h('textarea', { class: 'qz-ta', id: taId, rows: '3', placeholder: 'Optional. Work it out here before you check, for example which amplitudes add and which cancel. Your notes are saved in this browser and shown next to the explanation.' });
+      const taId = `${uid}-ta${i}`;
+      const ta = h('textarea', { class: 'qz-ta', id: taId, rows: '3', placeholder: 'Work it out here before you check, for example which amplitudes add and which cancel. Saved in this browser and shown next to the explanation.' });
       ta.value = mine;
-      ta.addEventListener('input', () => Prog.setNote(L.id, cur, ta.value));
-      ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); check(); } });
-      card.append(h('div', { class: 'qz-reason' }, h('label', { class: 'qz-label', for: taId }, ico('pen', 16), 'Your reasoning ', h('small', null, '(optional)')), ta));
-      const chk = btn('Check answer', check, 'pri lg', { disabled: it.sel === null });
+      ta.addEventListener('input', () => Prog.setNote(L.id, i, ta.value));
+      ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); check(i); } });
+      const det = h('details', { class: 'qz-reason' }, h('summary', { class: 'qz-label' }, ico('pen', 16), 'Your reasoning ', h('small', null, '(optional)')), ta);
+      if (mine.trim()) det.open = true;
+      card.append(det);
       card.append(h('div', { class: 'qz-actions' },
         h('span', { class: 'qz-hint' }, 'Keys:', h('kbd', null, 'A'), '–', h('kbd', null, letters[it.order.length - 1]), 'choose ·', h('kbd', null, 'Enter'), 'check'),
-        h('div', { class: 'btns' }, cur > 0 ? btn('Previous', () => { cur--; paint('.qz-card'); }, 'ghost') : null, chk)));
+        h('div', { class: 'btns' }, btn('Check answer', () => check(i), 'pri', { disabled: it.sel === null }))));
     } else {
       const ok = it.picked === q.a, letter = letters[it.order.indexOf(q.a)];
       card.append(h('div', { class: 'qz-fb ' + (ok ? 'good' : 'bad'), tabindex: '-1', role: 'status' },
@@ -476,54 +469,43 @@ function renderQuiz(L) {
         h('div', { class: 'qz-why-grid' + (mine.trim() ? ' two' : '') },
           mine.trim() ? h('div', { class: 'qz-mine' }, h('span', { class: 'qz-label' }, ico('pen', 16), 'Your reasoning'), h('p', null, mine)) : null,
           h('div', { class: 'qz-why' }, h('span', { class: 'qz-label' }, ico('bulb', 16), 'Why'), h('div', { class: 'qz-why-text', html: q.why })))));
-      const nx = nextOpen(cur);
-      card.append(h('div', { class: 'qz-actions' },
-        h('span', { class: 'qz-hint' }, `${answered()} of ${n} answered`),
-        h('div', { class: 'btns' },
-          cur > 0 ? btn('Previous', () => { cur--; paint('.qz-card'); }, 'ghost') : null,
-          nx === -1 ? btn('See your results', () => { results = true; paint('.qz-res'); }, 'pri lg')
-            : btn(nx === cur + 1 ? 'Next question' : `Go to question ${nx + 1}`, () => { cur = nx; paint('.qz-card'); }, 'pri lg'))));
-      const last = card.querySelector('.qz-actions .btn.pri'); if (last) last.append(ico('arrowR', 18));
+      const nx = nextOpen(i);
+      if (nx !== -1) card.append(h('div', { class: 'qz-actions' }, h('span'),
+        h('div', { class: 'btns' }, btn(nx === i + 1 ? 'Next question' : `Go to question ${nx + 1}`, () => { scrollToEl(items[nx].el); items[nx].el.focus({ preventScroll: true }); }, 'ghost'))));
     }
-    return card;
+    if (it.el) it.el.replaceWith(card); else list.append(h('li', null, card));
+    it.el = card;
+    if (focusSel) { const el = card.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
   }
-  function resultsView() {
+  function paintResults() {
+    resBox.innerHTML = '';
+    if (answered() < n) return;
     const s = right(), pass = s >= need, i = LESSONS.indexOf(L), next = LESSONS[i + 1];
-    const res = h('div', { class: 'qz-res', tabindex: '-1' });
-    res.append(h('div', { class: 'qz-res-top' },
-      ring(s / n, 132, 11, `${s}/${n}`, `${s} of ${n} correct`),
-      h('div', null,
-        h('h3', null, pass ? 'Lesson complete' : 'Nearly there'),
-        h('p', null, pass ? `You got ${s} of ${n} right on the first try. This lesson is now marked complete in your module.` : `You got ${s} of ${n}. Score ${need} or more to complete the lesson. Read the reasoning below, then retake the check with the options shuffled.`),
-        h('div', { class: 'btns' },
-          pass && next ? h('a', { class: 'btn pri', href: '#' + next.id }, 'Next lesson', ico('arrowR', 16)) : null,
-          btn('Retake with shuffled options', () => { const fresh = renderQuiz(L); sec.replaceWith(fresh); scrollToEl(fresh); }, pass ? '' : 'pri'),
-          h('a', { class: 'btn ghost', href: '#module/' + MOD_OF[L.id].no }, 'Module overview')))));
-    res.append(h('div', { class: 'qz-rev-list' }, ...items.map((it, k) => {
-      const ok = it.picked === it.q.a, mine = Prog.note(L.id, k);
-      const L2 = idx => `${letters[it.order.indexOf(idx)]}. ${it.q.o[idx]}`;
-      return h('details', { class: 'qz-rev' },
-        h('summary', null, h('span', { class: 'rv-icon ' + (ok ? 'good' : 'bad') }, ico(ok ? 'check' : 'x', 15)), h('span', null, h('b', null, `${k + 1}. `), it.q.q), h('span', { class: 'chev' }, ico('chevD', 18))),
-        h('div', { class: 'qz-rev-body' },
-          h('dl', null, h('dt', null, 'Your answer'), h('dd', { style: `color:var(${ok ? '--good' : '--bad'})` }, L2(it.picked)),
-            ok ? null : h('dt', null, 'Correct answer'), ok ? null : h('dd', null, L2(it.q.a)),
-            mine.trim() ? h('dt', null, 'Your reasoning') : null, mine.trim() ? h('dd', { style: 'white-space:pre-wrap' }, mine) : null),
-          h('div', { class: 'qz-why' }, h('span', { class: 'qz-label' }, ico('bulb', 16), 'Why'), h('div', { class: 'qz-why-text', html: it.q.why }))));
-    })));
-    return res;
+    resBox.append(h('div', { class: 'qz-res', tabindex: '-1' },
+      h('div', { class: 'qz-res-top' },
+        ring(s / n, 132, 11, `${s}/${n}`, `${s} of ${n} correct`),
+        h('div', null,
+          h('h3', null, pass ? 'Lesson complete' : 'Nearly there'),
+          h('p', null, pass ? `You got ${s} of ${n} right on the first try. This lesson is now marked complete in your module.` : `You got ${s} of ${n}. Score ${need} or more to complete the lesson. Read the explanations above, then retake the check with the options shuffled.`),
+          h('div', { class: 'btns' },
+            pass && next ? h('a', { class: 'btn pri', href: '#' + next.id }, 'Next lesson', ico('arrowR', 16)) : null,
+            btn('Retake with shuffled options', () => { const fresh = renderQuiz(L); sec.replaceWith(fresh); scrollToEl(fresh); }, pass ? '' : 'pri'),
+            h('a', { class: 'btn ghost', href: '#module/' + MOD_OF[L.id].no }, 'Module overview'))))));
   }
   sec.addEventListener('keydown', e => {
-    if (results || e.metaKey || e.ctrlKey || e.altKey) return;
-    const t = e.target; if (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') return;
-    const it = items[cur]; if (!it || it.picked !== null) return;
-    const k = 'ABCDEF'.indexOf(e.key.toUpperCase()), d = '123456'.indexOf(e.key), pick = k >= 0 && e.key.length === 1 ? k : d;
-    if (pick >= 0 && pick < it.order.length) { e.preventDefault(); it.sel = it.order[pick]; paint(`.qz-opt[data-k="${pick}"]`); }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SUMMARY') return;
+    const card = t.closest('.qz-card'); if (!card) return;
+    const i = +card.dataset.i, it = items[i]; if (it.picked !== null) return;
+    const k = letters.indexOf(e.key.toUpperCase()), d = '123456'.indexOf(e.key), pick = k >= 0 && e.key.length === 1 ? k : d;
+    if (pick >= 0 && pick < it.order.length) { e.preventDefault(); it.sel = it.order[pick]; paintCard(i, `.qz-opt[data-k="${pick}"]`); }
     else if (e.key === 'Enter' && !t.classList.contains('btn')) {
       if (t.classList.contains('qz-opt')) it.sel = it.order[+t.dataset.k];
-      if (it.sel !== null) { e.preventDefault(); check(); }
+      if (it.sel !== null) { e.preventDefault(); check(i); }
     }
   });
-  paint();
+  items.forEach((_, i) => paintCard(i));
+  paintScore();
   return sec;
 }
 
@@ -550,7 +532,7 @@ let firstRoute = true, lastView = '';
 function route() {
   const id = decodeURIComponent((location.hash || '').replace(/^#/, ''));
   const partNo = /^part\/[123]$/.test(id) ? +id.slice(5) : 0;
-  if (partNo && lastView === 'overview') { scrollToPart(partNo); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
+  if (partNo && lastView === 'overview') { scrollToPart(partNo); markPartBar(PART_OF_NO[partNo]); document.title = `${PART_LABEL[PART_OF_NO[partNo]]} · QSage`; return; }
   const main = document.getElementById('main');
   if (spyOff) { spyOff(); spyOff = null; }
   Scope.reset(); main.innerHTML = '';
@@ -561,6 +543,8 @@ function route() {
   else if (id === 'glossary') { renderGlossary(main); title = 'Glossary'; }
   else { renderOverview(main); if (partNo) title = PART_LABEL[PART_OF_NO[partNo]]; }
   lastView = L ? 'lesson' : id.startsWith('module/') ? 'module' : id === 'glossary' ? 'glossary' : 'overview';
+  const curPart = L ? MOD_OF[L.id].g.part : lastView === 'module' ? MODULES[+id.slice(7) - 1].g.part : partNo ? PART_OF_NO[partNo] : -1;
+  setPartBar(curPart);
   document.title = `${title} · QSage`;
   closeDrawer();
   if (partNo) requestAnimationFrame(() => { window.scrollTo(0, 0); scrollToPart(partNo); });

@@ -8,7 +8,7 @@
   --f-body:"Inter","Noto Sans Math",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-math:"STIX Two Text","Noto Sans Math",Georgia,"Times New Roman",serif;
   --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --side:304px; --top:68px;
+  --side:304px; --top-row:64px; --parts-row:52px; --top:calc(var(--top-row) + var(--parts-row));
 }
 :root[data-theme="dark"]{
   color-scheme:dark; --is-dark:1;
