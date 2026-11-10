@@ -450,7 +450,7 @@ ${LAB('collide')}
           const T = Theme.get(), cs = chans(), tot = 1 / cs.reduce((s, c) => s + 1 / c[1], 0);
           const rows = cs.concat([['total T₁', tot]]), L0 = 128, R0 = w - 70, X = v => L0 + (Math.log10(v) + 5) / 3.3 * (R0 - L0), rh = (H - 30) / rows.length;
           ctx.font = '500 10.5px "JetBrains Mono",monospace';
-          [1e-5, 1e-4, 1e-3, 1e-2].forEach(v => { const x = X(v); ctx.strokeStyle = T.line; ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x, H - 26); ctx.stroke(); txt(ctx, fmtSI(v, 's', 0), x, H - 14, { font: '500 10px "JetBrains Mono",monospace' }); });
+          [1e-5, 1e-4, 1e-3, 1e-2].forEach((v, i) => { const x = X(v); ctx.strokeStyle = T.line; ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x, H - 26); ctx.stroke(); if (R0 - L0 < 260 && i % 2 === 0) return; txt(ctx, fmtSI(v, 's', 0), x, H - 14, { font: '500 10px "JetBrains Mono",monospace' }); });
           rows.forEach(([nm, t], i) => { const y = 6 + i * rh, last = i === rows.length - 1, xv = clamp(X(t), L0, R0); ctx.fillStyle = last ? T.copper : rgba(T.cyan, .75); ctx.fillRect(L0, y + 3, Math.max(2, xv - L0), rh - 8);
             txt(ctx, nm, L0 - 8, y + rh / 2, { align: 'right', font: (last ? '700' : '500') + ' 11px "JetBrains Mono",monospace', color: last ? T.ink : T.muted }); txt(ctx, fmtSI(t, 's', t < 1e-3 ? 0 : 1), xv + 6, y + rh / 2, { align: 'left', font: '600 10.5px "JetBrains Mono",monospace', color: T.ink }); });
         });

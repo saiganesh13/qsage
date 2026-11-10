@@ -3,7 +3,7 @@
 This folder is the QSage website: a static site with no server code and no dependencies to install.
 
 - `index.html` — **Home**, the landing page (3D quantum computer via three.js from cdnjs, founder section, FAQ). Hand-edited, not generated.
-- `learn.html` — **Learn**, the course (12 modules, 131 lessons, 212 labs, 1,310 questions). **Generated** — never edit it directly.
+- `learn.html` — **Learn**, the course (14 modules in four parts, 141 lessons, 226 labs, 1,410 questions). **Generated** — never edit it directly.
 - `course/` — the sources for `learn.html`: `qs-tokens.css`, `lab.css`, `qs-ui.css`, `body.html`, and the lesson/engine/app scripts in `course/src/` (concatenated in filename order).
 - `build.py` — rebuilds `learn.html` from `course/`. Run `python build.py` (on Windows, `py build.py` may be needed).
 - `.nojekyll` — tells GitHub Pages to serve the files as they are.

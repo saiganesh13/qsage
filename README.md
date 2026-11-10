@@ -5,7 +5,7 @@ The QSage website: a home page and an interactive quantum computing course, writ
 | Page | What it is |
 | --- | --- |
 | `index.html` | **Home** — the landing page, with the animated 3D quantum computer, course structure, founder and FAQ |
-| `learn.html` | **Learn** — the course: 12 modules, 131 lessons, 212 live labs and 1,310 questions with explained answers |
+| `learn.html` | **Learn** — the course: 14 modules in four parts, 141 lessons, 226 live labs and 1,410 questions with explained answers |
 
 Both pages share the same navigation (Home · Learn) and the same dark and light themes. The visitor's theme choice is remembered between the two pages.
 
@@ -50,7 +50,7 @@ python build.py
 | `course/qs-ui.css` | QSage navigation, overview, module pages, lesson layout and the quiz |
 | `course/body.html` | Page shell: top bar, side panel, footer, mobile drawer |
 | `course/src/01-engine.js`, `07-…`, `15-…` | Simulation engine, drawing and UI helpers |
-| `course/src/02`–`41` | Lessons, labs, quiz questions and glossary |
+| `course/src/02`–`43` | Lessons, labs, quiz questions and glossary (`42` superconducting circuits, `43` circuit QED) |
 | `course/src/99-app.js` | Modules, routing, overview, module and lesson pages, quiz, glossary |
 
 Each lesson's `n` field is only a sort key within its module; lessons are renumbered when the page loads. Cross-references are written as `[[L:lesson-id]]`.

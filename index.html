@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QSage · Quantum computing, finally intuitive</title>
-<meta name="description" content="QSage teaches quantum computing in twelve modules, from the first qubit to fault-tolerant machines, with live labs in every lesson and explained answers to every question.">
+<meta name="description" content="QSage teaches quantum computing in fourteen modules, from the first qubit to superconducting hardware and fault-tolerant machines, with live labs in every lesson and explained answers to every question.">
 <script>
   (function () {
     var t = null;
@@ -183,7 +183,7 @@
   .card .num { font-family: var(--font-head); font-size: 14px; color: var(--num); }
   .card h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
   .card p { font-size: 15px; line-height: 1.55; color: var(--muted); }
-  .paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 16px; align-items: start; }
+  .paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; align-items: start; }
   .path { padding: 28px; border-radius: 28px; background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
   .path-k { font-size: 13.5px; font-weight: 500; color: var(--eyebrow); }
   .path h3 { font-size: 24px; font-weight: 600; line-height: 1.15; }
@@ -323,7 +323,7 @@
       </header>
 
       <main id="main" class="hero-copy">
-        <span class="badge">12 modules · 131 lessons · 212 live labs</span>
+        <span class="badge">14 modules · 141 lessons · 226 live labs</span>
         <h1>Quantum Computing,<br>Finally Intuitive</h1>
         <p>A course that follows a quantum computer from room temperature down to ten millikelvin, then into current research. Every lesson has live labs, and every question comes with its reasoning.</p>
         <div class="cta-ring">
@@ -345,7 +345,7 @@
           <div class="pc-head">
             <span>My learning path</span>
             <div style="display:flex;align-items:center;gap:8px">
-              <span class="pc-chip">12 modules</span>
+              <span class="pc-chip">14 modules</span>
               <button class="pc-plus" type="button" aria-label="Add a course"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke-linecap="round"/></svg></button>
             </div>
           </div>
@@ -380,21 +380,21 @@
   <!-- ================= COURSE STRUCTURE ================= -->
   <section class="sec wrap" id="courses">
     <div class="sec-head reveal">
-      <h2 class="h2">Twelve modules, from first qubit to fault tolerance</h2>
-      <p>Start with the math, descend through the five temperature stages of a real machine, then branch into six research tracks.</p>
+      <h2 class="h2">Fourteen modules in four parts</h2>
+      <p>Start with the math, descend through the five temperature stages of a real machine, then go inside the hardware and out into the algorithms that run on it.</p>
     </div>
     <div class="paths">
       <article class="path reveal">
-        <span class="path-k">Part 0 · Math toolkit</span>
+        <span class="path-k">Part 1 · Math toolkit</span>
         <h3>Linear algebra for quantum computing</h3>
         <p>Vectors and Dirac notation, matrices, eigenvalues, tensor products and the Schmidt decomposition, built from scratch with pictures.</p>
         <ul class="mlist">
             <li><a href="learn.html#module/1"><span class="mtag">LIN</span><span class="mt">Linear algebra toolkit</span><span class="mc">9 lessons</span></a></li>
         </ul>
-        <div class="path-foot"><span>9 lessons · 18 labs</span><a href="learn.html#module/1">Open module</a></div>
+        <div class="path-foot"><span>9 lessons · 18 labs</span><a href="learn.html#part/1">Open part 1</a></div>
       </article>
       <article class="path reveal">
-        <span class="path-k">Part I · Core path</span>
+        <span class="path-k">Part 2 · Core path</span>
         <h3>From 300 K to 10 mK</h3>
         <p>Five modules that follow the qubits down the fridge: each stage colder, each module a little deeper.</p>
         <ul class="mlist">
@@ -407,18 +407,28 @@
         <div class="path-foot"><span>50 lessons · 82 labs</span><a href="learn.html#module/2">Start at 300 K</a></div>
       </article>
       <article class="path reveal">
-        <span class="path-k">Part II · Research tracks</span>
-        <h3>Into current research</h3>
-        <p>Six tracks into where the field is working now, with the most room given to error correction.</p>
+        <span class="path-k">Part 3 · Hardware and fault tolerance</span>
+        <h3>Build the machine, then keep it correct</h3>
+        <p>How superconducting qubits are built and coupled, how gates become microwave pulses, and how error correction makes logical qubits.</p>
         <ul class="mlist">
-            <li><a href="learn.html#module/7"><span class="mtag">QEC</span><span class="mt">Error correction and fault tolerance</span><span class="mc">17 lessons</span></a></li>
-            <li><a href="learn.html#module/8"><span class="mtag">ALG</span><span class="mt">Algorithms and complexity</span><span class="mc">10 lessons</span></a></li>
-            <li><a href="learn.html#module/9"><span class="mtag">SIM</span><span class="mt">Simulation methods</span><span class="mc">9 lessons</span></a></li>
-            <li><a href="learn.html#module/10"><span class="mtag">CMP</span><span class="mt">Compilers and architecture</span><span class="mc">10 lessons</span></a></li>
-            <li><a href="learn.html#module/11"><span class="mtag">VQA</span><span class="mt">Chemistry and quantum machine learning</span><span class="mc">15 lessons</span></a></li>
-            <li><a href="learn.html#module/12"><span class="mtag">QIT</span><span class="mt">Information theory and cryptography</span><span class="mc">11 lessons</span></a></li>
+            <li><a href="learn.html#module/7"><span class="mtag">SCQ</span><span class="mt">Superconducting circuits</span><span class="mc">5 lessons</span></a></li>
+            <li><a href="learn.html#module/8"><span class="mtag">cQED</span><span class="mt">Circuit quantum electrodynamics</span><span class="mc">5 lessons</span></a></li>
+            <li><a href="learn.html#module/9"><span class="mtag">CMP</span><span class="mt">Compilers and architecture</span><span class="mc">10 lessons</span></a></li>
+            <li><a href="learn.html#module/10"><span class="mtag">QEC</span><span class="mt">Error correction and fault tolerance</span><span class="mc">17 lessons</span></a></li>
         </ul>
-        <div class="path-foot"><span>72 lessons · 112 labs</span><a href="learn.html#module/7">Explore the tracks</a></div>
+        <div class="path-foot"><span>37 lessons · 55 labs</span><a href="learn.html#part/3">Open part 3</a></div>
+      </article>
+      <article class="path reveal">
+        <span class="path-k">Part 4 · Algorithms and applications</span>
+        <h3>What to run on it, and what it means</h3>
+        <p>Algorithms and their limits, simulation methods, chemistry and machine learning on qubits, and quantum information and cryptography.</p>
+        <ul class="mlist">
+            <li><a href="learn.html#module/11"><span class="mtag">ALG</span><span class="mt">Algorithms and complexity</span><span class="mc">10 lessons</span></a></li>
+            <li><a href="learn.html#module/12"><span class="mtag">SIM</span><span class="mt">Simulation methods</span><span class="mc">9 lessons</span></a></li>
+            <li><a href="learn.html#module/13"><span class="mtag">VQA</span><span class="mt">Chemistry and quantum machine learning</span><span class="mc">15 lessons</span></a></li>
+            <li><a href="learn.html#module/14"><span class="mtag">QIT</span><span class="mt">Information theory and cryptography</span><span class="mc">11 lessons</span></a></li>
+        </ul>
+        <div class="path-foot"><span>45 lessons · 71 labs</span><a href="learn.html#part/4">Open part 4</a></div>
       </article>
     </div>
   </section>
@@ -460,17 +470,17 @@
     <div class="grid4">
       <article class="card reveal">
         <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2.5"/><path d="M10 8.5v5l4.5-2.5z"/><path d="M8 20.5h8"/></svg></span>
-        <h3>212 live labs</h3>
+        <h3>226 live labs</h3>
         <p>Bloch spheres, a 4-qubit circuit simulator, Grover and Shor, a 2,000-qubit stabilizer simulator, decoders and lattice surgery, all running in your browser.</p>
       </article>
       <article class="card reveal">
         <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M2 7h20M2 17h20"/><rect x="6" y="4" width="6" height="6" rx="1.2" fill="var(--card)"/><circle cx="16" cy="7" r="1.6" fill="currentColor"/><path d="M16 7v10"/><circle cx="16" cy="17" r="3"/><path d="M16 14v6M13 17h6"/></svg></span>
         <h3>Module by module</h3>
-        <p>Twelve modules with a clear lesson path, progress for every lesson and module, and a key-ideas recap at the end of each lesson.</p>
+        <p>Fourteen modules in four parts with a clear lesson path, progress for every lesson and module, and a key-ideas recap at the end of each lesson.</p>
       </article>
       <article class="card reveal">
         <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8.5 13l2 2 4-4.5"/></svg></span>
-        <h3>1,310 questions with reasoning</h3>
+        <h3>1,410 questions with reasoning</h3>
         <p>A ten-question check after every lesson. Write down your own reasoning, check your answer, then read why it is right.</p>
       </article>
       <article class="card reveal">
