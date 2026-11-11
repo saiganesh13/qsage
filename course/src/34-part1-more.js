@@ -261,7 +261,7 @@ LESSONS.push({
 <h2>Mixed states: several measures</h2>
 <p>Mixed states are harder: a mixture of entangled states can be separable, a convex combination of product states. Useful quantities for two qubits include</p>
 <ul>
-<li><strong>Concurrence</strong> ${m('C')} (Wootters, 1998), computed in closed form, from which the <strong>entanglement of formation</strong> ${m('E<sub>F</sub> = h((1 + √(1 − C²))/2)')} follows: the Bell pairs needed to create the state.</li>
+<li><strong>Concurrence</strong> ${m('C')} (Wootters, 1998), computed in closed form, from which the <strong>entanglement of formation</strong> ${m('E<sub>F</sub> = h((1 + √(1 − C²))/2)')} follows: the smallest average entanglement over all ways of mixing the state from pure states (its asymptotic version, the entanglement cost, counts the Bell pairs needed per copy).</li>
 <li><strong>Negativity</strong> ${m('N')}: the sum of the magnitudes of the negative eigenvalues of the <strong>partial transpose</strong> ${m('ρ<sup>T<sub>B</sub></sup>')}. Peres and the Horodeckis showed that for two qubits (and qubit–qutrit) the state is entangled exactly when the partial transpose has a negative eigenvalue.</li>
 <li><strong>Bell violation</strong>: the largest CHSH value ([[L:entanglement]]) the state can reach, ${m('2√(t₁² + t₂²)')} from its two largest correlation singular values (Horodecki criterion).</li>
 </ul>
@@ -301,7 +301,7 @@ ${LAB('werner')}
     ['What is the entanglement entropy of a pure two-party state?', ['The energy', 'The von Neumann entropy of either reduced state, S(ρ_A)', 'The number of qubits', 'The purity of the whole state'], 1, 'For pure states both halves have the same entropy.'],
     ['What is the entanglement entropy of a Bell state?', ['0', '1 ebit', '2 ebits', '½'], 1, 'Each half is maximally mixed, with entropy 1 bit.'],
     ['What does LOCC stand for?', ['Low-order coupled circuits', 'Local operations and classical communication', 'Logical operations on classical computers', 'Linear optical coherent control'], 1, 'Entanglement cannot increase under LOCC, which makes it a resource.'],
-    ['What does the entanglement of formation measure?', ['The energy of formation', 'The number of Bell pairs needed per copy to create the state by LOCC', 'The negativity', 'The CHSH value'], 1, 'For two qubits it follows from the concurrence.'],
+    ['What does the entanglement of formation measure?', ['The energy of formation', 'The least average entanglement of any pure-state decomposition of the state', 'The negativity', 'The CHSH value'], 1, 'It is a convex-roof average of pure-state entanglement, and for two qubits it follows from the concurrence. Its asymptotic version, the entanglement cost, counts the Bell pairs needed per copy to create the state by LOCC.'],
     ['What is the partial transpose?', ['Transposing the whole matrix', 'Transposing only the indices of one subsystem', 'Taking the trace', 'Inverting the matrix'], 1, 'For separable states it remains a valid density matrix.'],
     ['What does the Peres–Horodecki criterion state for two qubits?', ['All mixed states are separable', 'A state is entangled exactly when its partial transpose has a negative eigenvalue', 'Negativity is always zero', 'Concurrence equals CHSH'], 1, 'For larger systems a negative partial transpose is sufficient but not necessary.'],
     ['For which mixing weights is the Werner state entangled?', ['All p', 'p > 1/3', 'p > 1/√2 only', 'p < 1/3'], 1, 'Its concurrence is max(0, (3p − 1)/2), which becomes positive exactly at p = 1/3.'],

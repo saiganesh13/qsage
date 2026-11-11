@@ -281,7 +281,7 @@ ${LAB('glued')}
 <h2>Algorithms built from walks</h2>
 <ul>
 <li><strong>Element distinctness</strong> (Ambainis, 2004): deciding whether ${m('N')} numbers are all different takes ${m('O(N<sup>2/3</sup>)')} queries, optimal and better than both classical and Grover-based methods.</li>
-<li><strong>Spatial search</strong>: Grover-like search on a two-dimensional grid of ${m('N')} sites in about ${m('√N log N')} steps.</li>
+<li><strong>Spatial search</strong>: Grover-like search on a two-dimensional grid of ${m('N')} sites in about ${m('√(N log N)')} steps (Tulsi, 2008, improving the earlier ${m('√N log N')}).</li>
 <li><strong>Formula evaluation</strong> (Farhi, Goldstone and Gutmann, 2007): evaluating a balanced NAND tree with ${m('N')} leaves in about ${m('√N')} time, by scattering a wave packet off the tree.</li>
 </ul>
 `,

@@ -28,7 +28,7 @@ ${LAB('cheb')}
 <li><strong>Parity</strong> of ${m('N')} bits needs a polynomial of degree ${m('N')}, so at least ${m('N/2')} quantum queries, and ${m('N/2')} suffice: almost no speedup.</li>
 <li><strong>Exact search</strong>, with no error allowed, needs ${m('N')} queries; the √N speedup requires tolerating a small error.</li>
 <li><strong>NP-complete problems.</strong> Treated as black-box search over ${m('2ⁿ')} candidates, quantum computers get at most a square-root speedup. Faster quantum algorithms would have to exploit structure, and none is known for NP-complete problems.</li>
-<li><strong>The adversary method</strong> (Ambainis, 2000; with negative weights, Høyer, Lee and Špalek, 2007) gives bounds that are often stronger; Ben Reichardt showed in 2009 that its general form characterizes quantum query complexity exactly.</li>
+<li><strong>The adversary method</strong> (Ambainis, 2000; with negative weights, Høyer, Lee and Špalek, 2007) gives bounds that are often stronger; Ben Reichardt showed, in work from 2009 to 2011 (the last step with Lee, Mittal, Špalek and Szegedy), that its general form characterizes quantum query complexity up to a constant factor.</li>
 </ul>
 `,
   labs: {
@@ -94,7 +94,7 @@ ${LAB('cheb')}
     ['Which polynomials achieve the √N degree for OR?', ['Legendre polynomials', 'Chebyshev polynomials', 'Taylor polynomials of eˣ', 'Linear polynomials'], 1, 'Chebyshev polynomials stay within [−1, 1] on the interval and grow as fast as possible just outside it, which is exactly what is needed near k = 0.'],
     ['How many quantum queries are needed to compute the parity of N bits?', ['√N', 'N/2', 'log N', '1'], 1, 'Parity requires polynomial degree N, so at least N/2 queries; computing the XOR of pairs with one query each (Deutsch’s trick) shows N/2 suffices.'],
     ['What do these lower bounds imply for NP-complete problems?', ['Quantum computers solve them in polynomial time', 'Brute-force search gets at most a quadratic speedup; a faster quantum algorithm would have to exploit structure', 'They are classically easy', 'Nothing'], 1, 'Searching 2ⁿ candidates as a black box takes about 2^(n/2) quantum queries, still exponential.'],
-    ['What did Reichardt prove about the general adversary bound?', ['It is always loose', 'It characterizes quantum query complexity exactly, up to a constant factor', 'It applies only to classical algorithms', 'It equals the polynomial degree'], 1, 'Using span programs, Reichardt showed the negative-weight adversary bound is tight for every function, making it a complete characterization of query complexity.']
+    ['What did Reichardt prove about the general adversary bound?', ['It is always loose', 'It characterizes quantum query complexity exactly, up to a constant factor', 'It applies only to classical algorithms', 'It equals the polynomial degree'], 1, 'Using span programs, Reichardt (2009–2011, with Lee, Mittal, Špalek and Szegedy for general functions) showed the negative-weight adversary bound is tight for every function, making it a complete characterization of query complexity.']
   ])
 });
 

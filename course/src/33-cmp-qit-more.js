@@ -29,7 +29,7 @@ LESSONS.push({
 <h2>Spiders</h2>
 <p>Coecke and Duncan introduced the ZX-calculus in 2008 as a graphical language for quantum processes. A diagram has two kinds of node. A <strong>Z spider</strong> (green) with phase ${m('α')} maps ${m('|0…0⟩ → |0…0⟩')} and ${m('|1…1⟩ → e<sup>iα</sup>|1…1⟩')} between its input and output wires; an <strong>X spider</strong> (red) does the same in the ${m('|+⟩, |−⟩')} basis. A Z rotation is a green spider with one input and one output; a CNOT is a green spider on the control joined to a red spider on the target; a Hadamard is a yellow box or a dashed edge.</p>
 <h2>Only connectivity matters</h2>
-<p>The rules are few. Wires can be bent and nodes moved freely: only the graph matters. Adjacent spiders of the same colour <strong>fuse</strong>, adding their phases. Hadamards change a spider’s colour. A few more rules (the π-copy rule, bialgebra and the Euler decomposition of the Hadamard) complete the set, and the calculus is <em>complete</em> for Clifford+T: any two diagrams describing the same linear map can be rewritten into each other (Jeandel, Perdrix and Vilmart, 2018).</p>
+<p>The rules are few. Wires can be bent and nodes moved freely: only the graph matters. Adjacent spiders of the same colour <strong>fuse</strong>, adding their phases. Hadamards change a spider’s colour. A few more rules (the π-copy rule, bialgebra and the Euler decomposition of the Hadamard) complete the basic set, which is already complete for Clifford diagrams (Backens, 2014). With a few extra, more intricate axioms the calculus is <em>complete</em> for Clifford+T as well: any two diagrams describing the same linear map can be rewritten into each other (Jeandel, Perdrix and Vilmart, 2018).</p>
 ${ZX_SVG}
 <h2>Why compilers care</h2>
 <p>Spider fusion lets phases that sit on different gates of a circuit meet and merge, even when gates in between seem to block them. Kissinger and van de Wetering’s PyZX (2019) turns a circuit into a ZX diagram, simplifies it with graph-theoretic rules (local complementation and pivoting), and extracts an equivalent circuit, cutting T counts by double-digit percentages on standard benchmarks. The same idea in circuit language is <strong>phase folding</strong> (Amy, Maslov and Mosca): in a circuit of CNOTs and Z rotations every qubit at every moment holds a parity of the inputs, every rotation applies a phase to that parity, and rotations on the same parity can be merged wherever they occur.</p>
@@ -57,7 +57,7 @@ ${NOTE('Beyond T counts', `<p>ZX diagrams are also used to verify that two circu
     }
   },
   take: ['ZX diagrams are made of green (Z) and red (X) spiders with phases; only the connectivity of the graph matters.',
-    'Same-colour spiders fuse by adding phases, Hadamards change colour, and the calculus is complete for Clifford+T.',
+    'Same-colour spiders fuse by adding phases, Hadamards change colour, and with a few extra axioms the calculus is complete for Clifford+T.',
     'PyZX simplifies circuits by rewriting their ZX diagrams and extracting new circuits, reducing T counts substantially.',
     'Phase folding is the circuit-level view: CNOT + phase circuits are phase polynomials, and rotations on the same parity merge.'],
   quiz: QZ([
@@ -329,7 +329,7 @@ LESSONS.push({
 ${LAB('note')}
 <h2>Pitfalls and public keys</h2>
 <ul>
-<li><strong>Returning the note.</strong> If the bank hands back a failed note or tells the counterfeiter which qubits failed, repeated queries can reveal the secret states (an adaptive attack based on the bomb-tester idea). Notes must be destroyed or re-minted after failing.</li>
+<li><strong>Returning the note.</strong> If the bank hands back a failed note or tells the counterfeiter which qubits failed, repeated queries can reveal the secret states. Confiscating failed notes is not enough either: an adaptive attack based on the bomb-tester idea (Brodutch, Nagaj, Sattath and Unruh, 2016) works using only the valid notes the bank returns. The bank must hand back a freshly minted note after every verification.</li>
 <li><strong>The bank must verify.</strong> Wiesner’s money is private-key: only the bank can check it. <strong>Public-key quantum money</strong>, which anyone can verify but nobody can copy, needs computational assumptions, and several proposed schemes have been broken. Constructions based on quantum lightning, knots and group actions, and recent lattice-based ideas, remain under study; Zhandry (2019) connected the problem to deep questions in cryptography.</li>
 <li><strong>Legacy.</strong> Wiesner’s conjugate coding inspired Bennett and Brassard’s BB84 protocol ([[L:bb84]]), and its descendants include quantum tokens, one-shot signatures and copy-protected software.</li>
 </ul>
@@ -356,7 +356,7 @@ ${LAB('note')}
   },
   take: ['Wiesner’s quantum money stores random BB84 states on a note; the bank, knowing them, verifies by measuring in the right bases.',
     'Forging requires cloning unknown states; the optimal attack passes each qubit with probability 3/4, so forgery succeeds with (3/4)ⁿ.',
-    'Failed notes must not be returned, or adaptive attacks reveal the secret; and only the bank can verify.',
+    'The bank must replace every note it verifies with a fresh one, or adaptive attacks reveal the secret; and only the bank can verify.',
     'Public-key quantum money remains an open problem; Wiesner’s idea inspired BB84 and many later primitives.'],
   quiz: QZ([
     ['What does each qubit on a Wiesner banknote hold?', ['A random computational state only', 'One of the four BB84 states |0⟩, |1⟩, |+⟩, |−⟩, chosen at random and recorded by the bank', 'An entangled pair', 'A classical bit'], 1, 'The bank keeps the list of bases and values for each serial number.'],
@@ -365,7 +365,7 @@ ${LAB('note')}
     ['What is the optimal per-qubit success probability for producing two passing copies?', ['1/2', '3/4', '5/6', '1'], 1, 'Molina, Vidick and Watrous showed 3/4 is optimal for Wiesner’s scheme.'],
     ['With the measure-and-re-prepare strategy, why is the success per qubit 5/8?', ['By accident', 'Half the time the basis guess is right and both copies pass; otherwise each copy passes with probability ½, giving ½ + ½ · ¼', 'Because there are 8 states', 'Because of noise'], 1, 'Wrong-basis copies are random in the correct basis.'],
     ['Roughly what is (3/4)¹⁰⁰?', ['About 0.3', 'About 3 × 10⁻¹³', 'About 10⁻³', 'About 0.5'], 1, 'Exponential decay makes forging a 100-qubit note hopeless.'],
-    ['Why must failed notes not be returned?', ['Paperwork', 'Repeated verification attempts with feedback let an attacker learn the secret states adaptively', 'Because they are radioactive', 'It does not matter'], 1, 'Adaptive attacks exploit the verification oracle.'],
+    ['Why must the bank re-mint a note after verifying it?', ['Paperwork', 'Repeated verification attempts with feedback let an attacker learn the secret states adaptively', 'Because they are radioactive', 'It does not matter'], 1, 'Adaptive attacks exploit the verification oracle. The bomb-tester attack works even when the bank confiscates every failed note, so each verified note has to be swapped for a freshly minted one.'],
     ['What is the main limitation of Wiesner’s scheme?', ['It is insecure', 'Only the bank can verify notes (private-key money)', 'It needs entanglement', 'It uses classical bits'], 1, 'Public verification would need different, computationally secure constructions.'],
     ['What is public-key quantum money?', ['Money printed by anyone', 'Money anyone can verify but nobody can copy, which requires computational assumptions and is an open problem', 'A kind of QKD', 'A classical signature'], 1, 'Several proposals have been broken; secure constructions remain an active research area.'],
     ['Which protocol did Wiesner’s conjugate coding inspire?', ['RSA', 'BB84 quantum key distribution', 'Shor’s algorithm', 'Grover’s algorithm'], 1, 'Bennett and Brassard built BB84 on Wiesner’s idea.']

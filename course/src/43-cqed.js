@@ -82,7 +82,7 @@ ${NOTE('When the model breaks', `<p>The Jaynes–Cummings form drops terms like 
     ['What is the vacuum Rabi splitting?', ['The splitting of |g,0⟩', 'The 2g splitting between dressed states of |e,0⟩ and |g,1⟩ at resonance', 'The qubit anharmonicity', 'The readout shift'], 1, 'With one excitation and Δ = 0, the dressed states (|e,0⟩ ± |g,1⟩)/√2 are separated by 2g.'],
     ['What defines the strong-coupling regime?', ['g > ω', 'g larger than the photon loss rate κ and the qubit decay rate γ', 'g = 0', 'κ > g'], 1, 'Only then can an excitation swap between qubit and resonator several times before it is lost.'],
     ['Why is the √n spacing of the Jaynes–Cummings ladder important?', ['It proves the qubit has two levels', 'It is a signature of a quantized field: splittings grow in discrete √n steps', 'It sets the readout frequency', 'It is a fabrication error'], 1, 'A classical field would give smoothly varying splittings; observing √1, √2, √3 shows photons.'],
-    ['Why do Rabi oscillations collapse when the resonator holds a coherent field?', ['The qubit decays', 'Each photon number oscillates at its own frequency g√(n+1), and the mixture dephases', 'The field disappears', 'The detuning grows'], 1, 'A coherent state is a superposition of photon numbers with Poisson weights, each with a different Rabi frequency.'],
+    ['Why do Rabi oscillations collapse when the resonator holds a coherent field?', ['The qubit decays', 'Each photon number oscillates at its own frequency 2g√(n+1), and the mixture dephases', 'The field disappears', 'The detuning grows'], 1, 'A coherent state is a superposition of photon numbers with Poisson weights, each with a different Rabi frequency.'],
     ['Why do the oscillations later revive?', ['Because energy is added', 'Because photon numbers are discrete, the phases of neighbouring terms realign after a time of order 2π√n̄/g', 'Because the qubit is reset', 'They never revive'], 1, 'Discreteness means the terms rephase. A classical continuous field would collapse forever.'],
     ['When does the rotating-wave approximation behind the Jaynes–Cummings model fail?', ['When g ≪ ω', 'In the ultrastrong regime, g/ω above about 0.1', 'At zero temperature', 'When Δ = 0'], 1, 'Counter-rotating terms like a†σ₊ become important when the coupling is a sizeable fraction of the bare frequencies.']
   ])
@@ -298,7 +298,7 @@ ${EQ('ν<sub>ZX</sub> ≈ −(JΩ/Δ) · α/(Δ + α)')}
 </ul>
 ${LAB('cr')}
 <h2>The frequency-planning problem</h2>
-<p>The formula shows where CR works. At ${m('Δ → 0')} and ${m('Δ → −α')} the rate blows up and the perturbative picture fails: those are collisions, where the drive excites the wrong transitions. Far from both, ${m('ν<sub>ZX</sub>')} falls like ${m('1/Δ²')} and the gate becomes slow. The sweet range is a detuning comparable to the anharmonicity, which is why fixed-frequency lattices need careful frequency allocation and tight fabrication control ([[L:scmaterials]]). IBM’s Eagle, Heron and later processors are built on this all-microwave approach, with tunable couplers added in Heron to switch off ZZ.</p>
+<p>The formula shows where CR works. At ${m('Δ → 0')} and ${m('Δ → −α')} the rate blows up and the perturbative picture fails: those are collisions, where the drive excites the wrong transitions. Far from both, ${m('ν<sub>ZX</sub>')} falls like ${m('1/Δ²')} and the gate becomes slow. The sweet range is a detuning comparable to the anharmonicity, which is why fixed-frequency lattices need careful frequency allocation and tight fabrication control ([[L:scmaterials]]). IBM’s Falcon and Eagle processors were built on this all-microwave approach. Heron and later chips keep fixed-frequency qubits but add flux-tunable couplers, which switch off ZZ and drive CZ gates instead of cross-resonance.</p>
 `,
   labs: {
     cr: {
@@ -367,7 +367,7 @@ LESSONS.push({
 <p>An oscillator also has room: instead of two levels, it has many photon-number states, and photon loss, its dominant error, is a single, well-understood process. That combination is what <strong>bosonic codes</strong> exploit ([[L:bosonic]]).</p>
 <h2>Borrowing nonlinearity from a transmon</h2>
 <p>A cavity alone is linear and cannot be controlled beyond displacements ([[L:lccircuit]]). Coupling it dispersively to a transmon adds two things. The cross term ${m('χ a†a σ<sub>z</sub>')} lets the transmon detect and act on photon number ([[L:dispersive]]). And the cavity inherits a small <strong>self-Kerr</strong> nonlinearity,</p>
-${EQ('H<sub>Kerr</sub>/ħ = −(K/2) a†a†a a,&nbsp;&nbsp; K ≈ χ²/4|α|')}
+${EQ('H<sub>Kerr</sub>/ħ = −(K/2) a†a†a a,&nbsp;&nbsp; K ≈ χ²/|α|')}
 <p>which makes each photon number pick up phase at its own rate, typically tens of kilohertz. Combining photon-number-selective phase gates (<strong>SNAP</strong>) with displacements gives universal control of the oscillator (Krastanov et al., 2015; Heeres et al., 2015), and numerically optimized pulses or echoed conditional displacements now prepare almost any state in a few microseconds.</p>
 <h2>A cat from Kerr alone</h2>
 <p>Kerr evolution turns a coherent state into a cat. Each photon number ${m('n')} gains phase ${m('Kt·n(n−1)/2')}. At ${m('Kt = π')} the phases fall into a repeating pattern that makes the state a superposition of two coherent states on opposite sides of phase space, ${m('|iα⟩')} and ${m('|−iα⟩')} (a quarter turn from where it started, because ${m('a†a†aa')} also contains a term linear in ${m('n')}): a <strong>two-component cat</strong>. At ${m('Kt = π/2')} it is a four-component cat, at ${m('2π/q')} a ${m('q')}-component one, and at ${m('Kt = 2π')} the original coherent state revives. Kirchmair and colleagues watched exactly this happen in 2013.</p>
@@ -441,7 +441,7 @@ ${LAB('cat')}
     }
   },
   take: ['3D superconducting cavities store photons for milliseconds or longer because their field lives in vacuum rather than in lossy surfaces.',
-    'A dispersively coupled transmon gives the cavity photon-number-dependent control (χa†aσ_z) and a small self-Kerr K ≈ χ²/4|α|; SNAP gates plus displacements are universal.',
+    'A dispersively coupled transmon gives the cavity photon-number-dependent control (χa†aσ_z) and a small self-Kerr K ≈ χ²/|α| (χ as in χa†aσ_z, half the full dispersive shift); SNAP gates plus displacements are universal.',
     'Under Kerr evolution a coherent state becomes a q-component cat at Kt = 2π/q and revives at Kt = 2π.',
     'Cat qubits stabilized by two-photon dissipation have bit flips suppressed like e^{−2|α|²} and phase flips growing like κ₁|α|², a strongly biased qubit suited to repetition codes.'],
   quiz: QZ([

@@ -25,7 +25,7 @@ ${EQ(`P(1) = ${FR('Ω²', 'Ω² + Δ²')} sin²(Ω<sub>eff</sub> t / 2)`)}
 ${EQ('P(1) = ½ (1 + e<sup>−τ/T₂*</sup> cos Δτ)')}
 <p>These <strong>Ramsey fringes</strong> oscillate at exactly the detuning, so counting fringes measures the frequency error, and their decay measures the dephasing time ${m('T₂*')} from [[L:decoherence]]. Atomic clocks run on the same sequence.</p>
 ${LAB('chevron')}
-${NOTE('Pulses in practice', `<p>Real pulses have smooth envelopes, usually Gaussian or cosine shapes, because sharp edges contain frequencies that can excite unwanted transitions. A transmon has a third level only a few hundred megahertz above the second, so fast pulses also leak population into ${m('|2⟩')}; the <strong>DRAG</strong> technique adds a small out-of-phase component that cancels this leakage ([[L:pulses]] simulates both). Typical single-qubit gates last 20 to 50 ns on superconducting chips and microseconds on trapped ions, and are recalibrated many times a day as the hardware drifts.</p>`)}
+${NOTE('Pulses in practice', `<p>Real pulses have smooth envelopes, usually Gaussian or cosine shapes, because sharp edges contain frequencies that can excite unwanted transitions. A transmon’s ${m('|1⟩ → |2⟩')} transition sits only a few hundred megahertz below the qubit frequency, so fast pulses also leak population into ${m('|2⟩')}; the <strong>DRAG</strong> technique adds a small out-of-phase component that cancels this leakage ([[L:pulses]] simulates both). Typical single-qubit gates last 20 to 50 ns on superconducting chips and microseconds on trapped ions, and are recalibrated many times a day as the hardware drifts.</p>`)}
 `,
   labs: {
     rabi: {
@@ -140,7 +140,7 @@ ${LAB('logic')}
 ${LAB('garbage')}
 <h2>Inside the Toffoli</h2>
 <p>The Toffoli is not a Clifford gate, so on fault-tolerant hardware it must be built from cheaper pieces. The standard decomposition uses six CNOTs, two Hadamards and seven T or T† gates. T gates are the expensive resource in error-corrected machines ([[L:magic]]), so this <strong>T count</strong> of 7 matters. When the Toffoli computes an AND into a fresh zero that will later be uncomputed, a measurement-based trick by Craig Gidney (2018) cuts the cost to four T gates for the computation and none for the uncomputation.</p>
-<p>More generally, any controlled single-qubit gate ${m('C(U)')} can be built from two CNOTs and three single-qubit gates, using the fact that every ${m('U')} can be written as ${m('e<sup>iα</sup> AXBXC')} with ${m('ABC = I')}. Multi-controlled gates are built from Toffolis and ancillas. Arithmetic circuits, such as the ripple-carry adders inside Shor’s algorithm, are long chains of exactly these pieces.</p>
+<p>More generally, any controlled single-qubit gate ${m('C(U)')} can be built from two CNOTs and three single-qubit gates ${m('A, B, C')}, plus a phase gate on the control, using the fact that every ${m('U')} can be written as ${m('e<sup>iα</sup> AXBXC')} with ${m('ABC = I')}. Multi-controlled gates are built from Toffolis and ancillas. Arithmetic circuits, such as the ripple-carry adders inside Shor’s algorithm, are long chains of exactly these pieces.</p>
 `,
   labs: {
     logic: {

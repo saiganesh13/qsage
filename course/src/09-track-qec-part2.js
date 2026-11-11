@@ -122,7 +122,7 @@ LESSONS.push({
 ${LAB('distill')}
 <h2>Counting T gates</h2>
 <p>Algorithms are compiled to Clifford+T. An arbitrary single-qubit rotation must be approximated by a sequence of H and T gates; optimal synthesis (Ross and Selinger) needs about ${m('3 log₂(1/ε)')} T gates for precision ${m('ε')}. So the <strong>T count</strong>, and the number of rotations behind it, is the main cost figure that resource estimates track, alongside the number of logical qubits.</p>
-${NOTE('Cheaper magic', `<p>Factory costs keep falling. Litinski showed in 2019 that careful layouts make distillation far cheaper than earlier estimates assumed, and in 2024 Gidney, Shutty and Jones introduced <strong>magic state cultivation</strong>, which grows a high-quality T state inside a single surface-code patch at a cost comparable to a CNOT. This is one of the main reasons resource estimates for Shor’s algorithm dropped so sharply.</p>`)}
+${NOTE('Cheaper magic', `<p>Factory costs keep falling. Litinski showed in 2019 that careful layouts make distillation far cheaper than earlier estimates assumed, and in 2024 Gidney, Shutty and Jones introduced <strong>magic state cultivation</strong>, which grows a high-quality T state inside a small colour-code patch and then grafts it into a surface-code patch, at a cost comparable to a CNOT. This is one of the main reasons resource estimates for Shor’s algorithm dropped so sharply.</p>`)}
 `,
   mount(root) {
     const el = root.querySelector('[data-tgadget]'); if (!el) return;
@@ -313,7 +313,7 @@ window.GLOSSARY_EXTRA.push(
   ['Concatenation', 'Encoding each physical qubit of a code in another copy of the code, level after level.', 'faulttolerance'],
   ['Magic state', 'A non-stabilizer state such as T|+⟩ that, consumed with Clifford operations, applies a non-Clifford gate.', 'magic'],
   ['Magic state distillation', 'Turning many noisy magic states into fewer, better ones, e.g. 15-to-1 with error ≈ 35p³.', 'magic'],
-  ['Magic state cultivation', 'Growing a high-fidelity T state inside one surface-code patch (Gidney, Shutty and Jones, 2024).', 'magic'],
+  ['Magic state cultivation', 'Growing a high-fidelity T state inside a small colour-code patch, then grafting it into a surface-code patch (Gidney, Shutty and Jones, 2024).', 'magic'],
   ['Lattice surgery', 'Merging and splitting surface-code patches to measure joint logical operators and perform CNOTs.', 'surgery'],
   ['T count', 'The number of T gates in a Clifford+T circuit; the main cost driver in fault-tolerant estimates.', 'magic'],
   ['qLDPC code', 'A quantum low-density parity-check code: small checks, but possibly between distant qubits.', 'qldpc'],

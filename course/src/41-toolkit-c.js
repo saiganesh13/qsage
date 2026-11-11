@@ -173,7 +173,7 @@ ${LAB('trotter')}
     ['What is e^(−iθX/2)?', ['cos θ · X', 'cos(θ/2)I − i sin(θ/2)X, the rotation Rx(θ)', 'e^(−iθ/2) X', 'I − iθX'], 1, 'X² = I splits the series into cosine and sine parts.'],
     ['Why does the series for e^(−iθP/2) split into cosine and sine?', ['P is diagonal', 'P² = I, so even powers are I and odd powers are P', 'P is zero', 'θ is small'], 1, 'Even terms build cos(θ/2)I, odd terms build −i sin(θ/2)P.'],
     ['What solves the Schrödinger equation i d|ψ⟩/dt = H|ψ⟩?', ['|ψ(t)⟩ = H t |ψ(0)⟩', '|ψ(t)⟩ = e^(−iHt)|ψ(0)⟩', '|ψ(t)⟩ = |ψ(0)⟩/t', '|ψ(t)⟩ = e^(Ht)|ψ(0)⟩'], 1, 'Differentiating e^(−iHt)|ψ(0)⟩ brings down −iH, which solves the equation (with ħ = 1).'],
-    ['Why is e^(−iHt) unitary?', ['Because t is real and H is Hermitian', 'Because every exponential is unitary', 'Because H is unitary', 'It is not'], 1, '(e^(−iHt))† = e^(iHt), its inverse, when H† = H.'],
+    ['Why is e^(−iHt) unitary?', ['Because t is real and H is Hermitian', 'Because every exponential is unitary', 'Because H is unitary', 'It is not'], 0, '(e^(−iHt))† = e^(iHt), its inverse, when H† = H.'],
     ['What happens to an energy eigenstate under e^(−iHt)?', ['It changes into another eigenstate', 'It only gains a phase e^(−iEt)', 'It is measured', 'It decays'], 1, 'Eigenvectors are kept; eigenvalues become phases.'],
     ['When does e^(A+B) = e^A e^B hold for matrices?', ['Always', 'When A and B commute', 'When both are Hermitian', 'Never'], 1, 'Otherwise the BCH formula adds commutator terms.'],
     ['How does first-order Trotter error scale with the number of steps n?', ['It grows with n', 'Like 1/n', 'Like 1/n³', 'It is independent of n'], 1, 'The error bound is about t²‖[A,B]‖/(2n), so doubling n halves it.'],

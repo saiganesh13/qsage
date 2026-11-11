@@ -315,7 +315,7 @@ ${LAB('hgp')}
 <h2>Bivariate bicycle codes</h2>
 <p>Bravyi and colleagues at IBM (Nature, 2024) found practical codes with an elegant algebraic description. Take an ${m('l × m')} grid on a torus and let ${m('x')} and ${m('y')} be the cyclic shifts along its two directions. Choose two polynomials, each a sum of three monomials, such as ${m('A = x³ + y + y²')} and ${m('B = y³ + x + x²')}. Then</p>
 ${EQ('H<sub>X</sub> = [ A | B ], &nbsp;&nbsp; H<sub>Z</sub> = [ Bᵀ | Aᵀ ]')}
-<p>commute automatically because shifts commute. Each check touches six qubits: three nearby and three farther away. With ${m('l = 12, m = 6')} this gives the <strong>gross code</strong> ${m('[[144, 12, 12]]')}: 12 logical qubits at distance 12, using 144 data and 144 check qubits. Surface codes would need about 3,000 qubits for the same protection. Its Tanner graph splits into two planar layers, so it can be wired on a chip with two layers of couplers, and simulations show a threshold of about 0.7% under circuit-level noise, comparable to the surface code ([[L:thresholds]]).</p>
+<p>commute automatically because shifts commute. Each check touches six qubits: four nearby and two farther away. With ${m('l = 12, m = 6')} this gives the <strong>gross code</strong> ${m('[[144, 12, 12]]')}: 12 logical qubits at distance 12, using 144 data and 144 check qubits. Surface codes would need about 3,000 qubits for the same protection. Its Tanner graph splits into two planar layers, so it can be wired on a chip with two layers of couplers, and simulations show a threshold of about 0.7% under circuit-level noise, comparable to the surface code ([[L:thresholds]]).</p>
 ${LAB('gross')}
 <h2>The catch</h2>
 <ul>

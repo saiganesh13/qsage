@@ -112,7 +112,7 @@ ${LAB('qpe')}
 <h2>Hamiltonian simulation</h2>
 <p>To run QPE on ${m('e<sup>−iHt</sup>')}, you first have to build that operator from gates. Most physical Hamiltonians are sums of simple terms, ${m('H = Σ<sub>j</sub> H<sub>j</sub>')}, each easy to exponentiate on its own. If the terms commuted you could apply them one after another. They usually don’t, but the <strong>Lie–Trotter product formula</strong> says that alternating many short steps works:</p>
 ${EQ('e<sup>−i(A+B)t</sup> ≈ (e<sup>−iAt/r</sup> e<sup>−iBt/r</sup>)<sup>r</sup>,&nbsp;&nbsp; error O(t²/r)')}
-<p>The symmetric second-order formula ${m('e<sup>−iAτ/2</sup>e<sup>−iBτ</sup>e<sup>−iAτ/2</sup>')} has error ${m('O(t³/r²)')}. Seth Lloyd showed in 1996 that this makes local Hamiltonians efficiently simulable, confirming Feynman’s intuition. Newer techniques, linear combinations of unitaries and <strong>qubitization</strong> (Low and Chuang), reach the optimal cost of about ${m('t + log(1/ε)')} queries.</p>
+<p>The symmetric second-order formula ${m('e<sup>−iAτ/2</sup>e<sup>−iBτ</sup>e<sup>−iAτ/2</sup>')} has error ${m('O(t³/r²)')}. Seth Lloyd showed in 1996 that this makes local Hamiltonians efficiently simulable, confirming Feynman’s intuition. Newer techniques do better: linear combinations of unitaries (Berry, Childs and colleagues, 2015) come close, and quantum signal processing and <strong>qubitization</strong> (Low and Chuang, 2017–2019) reach the optimal cost of about ${m('t + log(1/ε)')} queries.</p>
 ${LAB('trotter')}
 ${NOTE('Linear systems and the fine print', `<p>The HHL algorithm (Harrow, Hassidim and Lloyd, 2009) uses QPE to “solve” linear systems ${m('Ax = b')} exponentially faster than classical methods. The speedup holds only if ${m('A')} is sparse and well conditioned, ${m('b')} can be loaded quickly, and you only need a few properties of the solution, which arrives as a quantum state rather than a list of numbers. Several claimed applications lose the advantage once these conditions are checked, and some have been matched by “dequantized” classical algorithms. [[L:hhl]] simulates the algorithm and reads the fine print in detail.</p>`)}
 `,
@@ -338,9 +338,9 @@ import cirq
 
 q0, q1 = cirq.LineQubit.range(2)
 circuit = cirq.Circuit(cirq.H(q0), cirq.CNOT(q0, q1),
+                       cirq.depolarize(p=0.01, n_qubits=2).on(q0, q1),
                        cirq.measure(q0, q1, key="m"))
-noisy = circuit.with_noise(cirq.depolarize(p=0.01))
-result = cirq.DensityMatrixSimulator().run(noisy, repetitions=4000)
+result = cirq.DensityMatrixSimulator().run(circuit, repetitions=4000)
 print(result.histogram(key="m"))
 `)}
 ${CODE('python · qutip', `
@@ -410,7 +410,7 @@ print(result.expect[0][:5])
     'Qiskit Aer, Cirq and QuTiP cover circuits, noisy circuits and open-system dynamics.'],
   quiz: [
     { q: 'Under amplitude damping with γ = 1, where does every state end up?', o: ['The center', '|1⟩', '|0⟩', 'The equator'], a: 2, why: 'Full relaxation sends everything to the ground state |0⟩, the north pole.' },
-    { q: 'About how many qubits can an exact density-matrix simulation hold in 16 GB?', o: ['15', '30', '50', '1,000'], a: 0, why: '16 · 4ⁿ bytes ≤ 1.6 × 10¹⁰ gives n ≈ 15.' }
+    { q: 'About how many qubits can an exact density-matrix simulation hold in 16 GB?', o: ['15', '30', '50', '1,000'], a: 0, why: 'A density matrix holds 4ⁿ complex numbers at 16 bytes each. 16 · 4¹⁴ ≈ 4.3 GB fits easily; 16 · 4¹⁵ = 2³⁴ bytes is exactly 16 GiB, so about 15 qubits is the limit.' }
   ]
 });
 
